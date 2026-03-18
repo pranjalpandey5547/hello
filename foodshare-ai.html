@@ -1,0 +1,1612 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FoodShare AI — Smart Food Waste Management</title>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+:root {
+  --green:#1a7a2e; --green-light:#28a745; --green-pale:#e8f5eb; --green-mid:#4caf50;
+  --orange:#f97316; --orange-light:#fb923c; --orange-pale:#fff4ed;
+  --cream:#fafaf8; --white:#ffffff;
+  --dark:#0f1a0f; --mid:#4a5568; --light:#718096;
+  --border:#e2e8f0; --shadow:0 4px 24px rgba(0,0,0,0.08);
+  --radius:14px; --radius-lg:22px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html{scroll-behavior:smooth;}
+body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--dark);overflow-x:hidden;}
+
+/* ===== SCROLLBAR ===== */
+::-webkit-scrollbar{width:6px;}
+::-webkit-scrollbar-track{background:#f1f1f1;}
+::-webkit-scrollbar-thumb{background:var(--green-mid);border-radius:3px;}
+
+/* ===== LOADING ===== */
+#pageLoader{position:fixed;inset:0;z-index:99999;background:var(--dark);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1.5rem;transition:opacity .5s,visibility .5s;}
+#pageLoader.out{opacity:0;visibility:hidden;}
+.loader-logo{font-family:'Poppins',sans-serif;font-size:2rem;font-weight:800;color:#fff;}
+.loader-logo span{color:var(--orange);}
+.loader-bar-bg{width:220px;height:3px;background:rgba(255,255,255,.1);border-radius:3px;overflow:hidden;}
+.loader-bar{height:100%;width:0%;background:linear-gradient(90deg,var(--green-mid),var(--orange));border-radius:3px;transition:width .05s linear;}
+.loader-txt{font-size:.78rem;color:rgba(255,255,255,.35);letter-spacing:2px;text-transform:uppercase;}
+
+/* ===== NAV ===== */
+nav{position:fixed;top:0;left:0;right:0;z-index:1000;display:flex;align-items:center;justify-content:space-between;padding:1rem 4rem;background:rgba(255,255,255,.95);backdrop-filter:blur(16px);border-bottom:1px solid var(--border);transition:all .3s;}
+.nav-logo{font-family:'Poppins',sans-serif;font-size:1.4rem;font-weight:800;color:var(--green);display:flex;align-items:center;gap:.5rem;cursor:pointer;}
+.nav-logo span{color:var(--orange);}
+.nav-links{display:flex;gap:2rem;align-items:center;}
+.nav-links a{text-decoration:none;color:var(--mid);font-size:.88rem;font-weight:500;transition:color .2s;cursor:pointer;}
+.nav-links a:hover{color:var(--green);}
+.nav-actions{display:flex;align-items:center;gap:1rem;}
+.lang-toggle{display:flex;align-items:center;background:var(--green-pale);border:1.5px solid rgba(26,122,46,.2);border-radius:50px;overflow:hidden;}
+.lang-btn{padding:.35rem .8rem;font-size:.78rem;font-weight:600;cursor:pointer;border:none;background:transparent;color:var(--green);transition:all .2s;font-family:'DM Sans',sans-serif;}
+.lang-btn.active{background:var(--green);color:#fff;}
+.btn-nav{background:var(--green);color:#fff;padding:.5rem 1.4rem;border-radius:50px;font-size:.85rem;font-weight:600;border:none;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .2s;}
+.btn-nav:hover{background:var(--green-light);transform:translateY(-1px);}
+.user-nav-avatar{width:36px;height:36px;border-radius:50%;background:var(--green);color:#fff;font-weight:700;font-size:.85rem;display:flex;align-items:center;justify-content:center;cursor:pointer;position:relative;}
+.user-nav-menu{position:absolute;top:110%;right:0;background:#fff;border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,.12);border:1px solid var(--border);min-width:180px;padding:.5rem;display:none;}
+.user-nav-avatar:hover .user-nav-menu{display:block;}
+.unm-item{display:block;padding:.5rem .8rem;font-size:.85rem;color:var(--mid);text-decoration:none;border-radius:8px;cursor:pointer;transition:background .15s;}
+.unm-item:hover{background:var(--green-pale);color:var(--green);}
+.unm-item.red{color:#e53935;}
+.unm-item.red:hover{background:#fff5f5;}
+
+/* ===== PAGES ===== */
+.page{display:none;}
+.page.active{display:block;}
+
+/* ===== HERO ===== */
+.hero{min-height:100vh;background:linear-gradient(135deg,#0f1a0f 0%,#1a3d1e 50%,#0f2d14 100%);display:flex;align-items:center;padding:8rem 4rem 4rem;position:relative;overflow:hidden;}
+.hero::before{content:'';position:absolute;inset:0;background:url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%2328a745' fill-opacity='0.04'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");}
+.hero-content{position:relative;z-index:1;max-width:640px;}
+.hero-badge{display:inline-flex;align-items:center;gap:.5rem;background:rgba(249,115,22,.12);border:1px solid rgba(249,115,22,.3);color:var(--orange-light);padding:.4rem 1rem;border-radius:50px;font-size:.8rem;font-weight:600;margin-bottom:1.8rem;animation:fadeUp .6s ease both;}
+@keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+.hero h1{font-family:'Poppins',sans-serif;font-size:clamp(2.4rem,5vw,4rem);font-weight:800;color:#fff;line-height:1.1;margin-bottom:1.4rem;animation:fadeUp .7s ease .1s both;}
+.hero h1 em{font-style:normal;color:var(--orange-light);}
+.hero p{font-size:1.05rem;color:rgba(255,255,255,.65);line-height:1.7;max-width:500px;margin-bottom:2.4rem;animation:fadeUp .7s ease .2s both;}
+.hero-actions{display:flex;gap:1rem;flex-wrap:wrap;animation:fadeUp .7s ease .3s both;}
+.btn-primary{background:var(--orange);color:#fff;padding:.9rem 2rem;border-radius:50px;font-weight:600;font-size:.95rem;border:none;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .3s;box-shadow:0 4px 20px rgba(249,115,22,.35);}
+.btn-primary:hover{background:var(--orange-light);transform:translateY(-2px);}
+.btn-outline{background:transparent;color:#fff;padding:.9rem 2rem;border-radius:50px;font-weight:600;font-size:.95rem;border:2px solid rgba(255,255,255,.25);cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .3s;}
+.btn-outline:hover{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.5);}
+.btn-green{background:var(--green-mid);color:#fff;padding:.9rem 2rem;border-radius:50px;font-weight:600;font-size:.95rem;border:none;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .3s;}
+.btn-green:hover{background:var(--green-light);transform:translateY(-2px);}
+.hero-visual{position:absolute;right:4rem;top:50%;transform:translateY(-50%);width:420px;animation:fadeUp .8s ease .4s both;}
+.hero-cards{display:flex;flex-direction:column;gap:1rem;}
+.h-card{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:16px;padding:1.2rem 1.5rem;display:flex;align-items:center;gap:1rem;backdrop-filter:blur(10px);}
+.h-card-icon{font-size:2rem;}
+.h-card-stat{font-family:'Poppins',sans-serif;font-size:1.6rem;font-weight:800;color:#fff;}
+.h-card-label{font-size:.8rem;color:rgba(255,255,255,.5);}
+
+/* ===== STATS ===== */
+.stats{padding:5rem 4rem;background:#fff;}
+.section-tag{font-size:.75rem;font-weight:700;color:var(--orange);text-transform:uppercase;letter-spacing:3px;margin-bottom:.8rem;}
+.section-title{font-family:'Poppins',sans-serif;font-size:clamp(1.8rem,3.5vw,2.8rem);font-weight:800;line-height:1.2;margin-bottom:1rem;}
+.section-title em{font-style:normal;color:var(--green);}
+.section-sub{color:var(--mid);font-size:1rem;line-height:1.7;max-width:560px;}
+.stats-header{text-align:center;margin-bottom:3.5rem;}
+.stats-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1.5rem;max-width:960px;margin:0 auto;}
+.stat-card{background:var(--cream);border-radius:var(--radius-lg);padding:2rem;text-align:center;border:1px solid var(--border);transition:all .3s;position:relative;overflow:hidden;}
+.stat-card::before{content:'';position:absolute;bottom:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--green-mid),var(--orange));}
+.stat-card:hover{transform:translateY(-4px);box-shadow:var(--shadow);}
+.stat-icon{font-size:2.2rem;margin-bottom:.8rem;}
+.stat-num{font-family:'Poppins',sans-serif;font-size:2.4rem;font-weight:800;color:var(--green);line-height:1;}
+.stat-label{font-size:.85rem;color:var(--mid);margin-top:.4rem;}
+
+/* ===== HOW IT WORKS ===== */
+.how{padding:5rem 4rem;background:var(--green-pale);}
+.how-header{text-align:center;margin-bottom:4rem;}
+.how-steps{display:grid;grid-template-columns:repeat(4,1fr);gap:1.5rem;max-width:1100px;margin:0 auto;position:relative;}
+.how-steps::before{content:'';position:absolute;top:40px;left:12.5%;right:12.5%;height:2px;background:linear-gradient(90deg,var(--green-mid),var(--orange));z-index:0;}
+.how-step{background:#fff;border-radius:var(--radius-lg);padding:2rem 1.5rem;text-align:center;border:1px solid rgba(26,122,46,.1);position:relative;z-index:1;transition:all .3s;}
+.how-step:hover{transform:translateY(-4px);box-shadow:var(--shadow);}
+.step-num{width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,var(--green),var(--green-light));color:#fff;font-family:'Poppins',sans-serif;font-size:1.2rem;font-weight:800;display:flex;align-items:center;justify-content:center;margin:0 auto 1.2rem;}
+.how-step h4{font-family:'Poppins',sans-serif;font-size:1rem;font-weight:700;margin-bottom:.6rem;color:var(--dark);}
+.how-step p{font-size:.84rem;color:var(--mid);line-height:1.6;}
+
+/* ===== TOP DONORS ===== */
+.donors{padding:5rem 4rem;background:#fff;}
+.donors-header{text-align:center;margin-bottom:3rem;}
+.donors-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1.5rem;max-width:900px;margin:0 auto;}
+.donor-card{background:var(--cream);border-radius:var(--radius-lg);padding:1.8rem;display:flex;align-items:center;gap:1.2rem;border:1px solid var(--border);transition:all .3s;}
+.donor-card:hover{border-color:var(--green-mid);transform:translateY(-2px);box-shadow:var(--shadow);}
+.donor-rank{font-family:'Poppins',sans-serif;font-size:1.8rem;font-weight:900;color:rgba(26,122,46,.15);min-width:36px;}
+.donor-rank.gold{color:rgba(245,158,11,.4);}
+.donor-rank.silver{color:rgba(107,114,128,.3);}
+.donor-rank.bronze{color:rgba(180,83,9,.25);}
+.donor-avatar{width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,var(--green),var(--orange));color:#fff;font-weight:700;font-size:1rem;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.donor-info h5{font-weight:700;font-size:.95rem;}
+.donor-meals{font-size:.82rem;color:var(--mid);}
+.donor-stars{color:var(--orange);font-size:.8rem;margin-top:.2rem;}
+
+/* ===== AUTH OVERLAY ===== */
+#authOverlay{position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,.6);backdrop-filter:blur(6px);display:none;align-items:center;justify-content:center;padding:1rem;overflow-y:auto;}
+#authOverlay.open{display:flex;}
+.auth-modal{background:#fff;border-radius:24px;width:100%;max-width:480px;padding:2.5rem;position:relative;max-height:90vh;overflow-y:auto;}
+.auth-close{position:absolute;top:1.2rem;right:1.2rem;background:var(--cream);border:none;width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center;color:var(--mid);}
+.auth-logo{font-family:'Poppins',sans-serif;font-size:1.5rem;font-weight:800;color:var(--green);text-align:center;margin-bottom:.3rem;}
+.auth-logo span{color:var(--orange);}
+.auth-sub{text-align:center;font-size:.84rem;color:var(--mid);margin-bottom:1.8rem;}
+.auth-tabs{display:flex;background:var(--cream);border-radius:12px;padding:4px;margin-bottom:1.8rem;gap:4px;}
+.auth-tab{flex:1;padding:.6rem;border-radius:9px;border:none;background:transparent;font-family:'DM Sans',sans-serif;font-size:.88rem;font-weight:600;cursor:pointer;color:var(--mid);transition:all .2s;}
+.auth-tab.active{background:#fff;color:var(--green);box-shadow:0 2px 8px rgba(0,0,0,.08);}
+.auth-panel{display:none;}
+.auth-panel.active{display:block;}
+.form-field{margin-bottom:1rem;}
+.form-field label{display:block;font-size:.8rem;font-weight:600;color:var(--dark);margin-bottom:.35rem;}
+.form-field input,.form-field select,.form-field textarea{width:100%;background:var(--cream);border:1.5px solid var(--border);border-radius:10px;padding:.72rem 1rem;font-family:'DM Sans',sans-serif;font-size:.9rem;color:var(--dark);outline:none;transition:border-color .2s;}
+.form-field input:focus,.form-field select:focus,.form-field textarea:focus{border-color:var(--green-mid);}
+.form-row-2{display:grid;grid-template-columns:1fr 1fr;gap:.8rem;}
+.auth-btn{width:100%;background:var(--green);color:#fff;border:none;border-radius:12px;padding:.88rem;font-family:'DM Sans',sans-serif;font-size:.95rem;font-weight:700;cursor:pointer;margin-top:.5rem;transition:all .2s;}
+.auth-btn:hover{background:var(--green-light);}
+.auth-btn.orange{background:var(--orange);}
+.auth-btn.orange:hover{background:var(--orange-light);}
+.auth-err{background:#fff5f5;border:1px solid rgba(229,57,53,.2);color:#e53935;font-size:.8rem;padding:.6rem .9rem;border-radius:8px;margin-bottom:.9rem;display:none;}
+.auth-free{background:var(--green-pale);border:1px solid rgba(26,122,46,.15);border-radius:10px;padding:.7rem 1rem;text-align:center;font-size:.8rem;color:var(--green);margin-top:1rem;}
+/* OTP */
+.otp-boxes{display:flex;gap:.5rem;justify-content:center;margin:1.2rem 0;}
+.otp-box{width:48px;height:56px;background:var(--cream);border:2px solid var(--border);border-radius:12px;text-align:center;font-size:1.6rem;font-weight:700;color:var(--dark);outline:none;transition:all .2s;}
+.otp-box:focus{border-color:var(--green-mid);}
+.otp-box.filled{border-color:var(--green-mid);background:var(--green-pale);}
+
+/* ===== DASHBOARD LAYOUT ===== */
+.dash-layout{display:grid;grid-template-columns:260px 1fr;min-height:100vh;padding-top:73px;}
+.dash-sidebar{background:var(--dark);padding:2rem 1.2rem;position:sticky;top:73px;height:calc(100vh - 73px);overflow-y:auto;}
+.dash-sidebar-logo{font-family:'Poppins',sans-serif;font-size:1.1rem;font-weight:800;color:#fff;padding:.8rem;margin-bottom:1.5rem;}
+.dash-sidebar-logo span{color:var(--orange);}
+.sidebar-section{font-size:.68rem;font-weight:700;color:rgba(255,255,255,.25);text-transform:uppercase;letter-spacing:2px;padding:.5rem .8rem;margin-bottom:.3rem;}
+.sidebar-item{display:flex;align-items:center;gap:.8rem;padding:.7rem .8rem;border-radius:10px;color:rgba(255,255,255,.55);font-size:.88rem;font-weight:500;cursor:pointer;transition:all .2s;margin-bottom:.2rem;}
+.sidebar-item:hover{background:rgba(255,255,255,.06);color:#fff;}
+.sidebar-item.active{background:var(--green);color:#fff;}
+.sidebar-item .si-icon{font-size:1.1rem;width:24px;text-align:center;}
+.sidebar-item .si-badge{margin-left:auto;background:var(--orange);color:#fff;font-size:.65rem;font-weight:700;padding:.15rem .5rem;border-radius:50px;}
+.dash-main{padding:2rem 2.5rem;background:var(--cream);}
+.dash-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:2rem;}
+.dash-top h2{font-family:'Poppins',sans-serif;font-size:1.5rem;font-weight:700;}
+.dash-top p{font-size:.85rem;color:var(--mid);}
+.dash-cards{display:grid;grid-template-columns:repeat(4,1fr);gap:1.2rem;margin-bottom:2rem;}
+.dash-card{background:#fff;border-radius:var(--radius);padding:1.4rem;border:1px solid var(--border);}
+.dash-card-icon{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:1.3rem;margin-bottom:.8rem;}
+.dash-card-num{font-family:'Poppins',sans-serif;font-size:1.8rem;font-weight:800;color:var(--dark);}
+.dash-card-label{font-size:.8rem;color:var(--mid);margin-top:.2rem;}
+.dash-card-trend{font-size:.75rem;color:var(--green-mid);margin-top:.3rem;}
+.dash-section{background:#fff;border-radius:var(--radius-lg);padding:1.8rem;border:1px solid var(--border);margin-bottom:1.5rem;}
+.dash-section-title{font-family:'Poppins',sans-serif;font-size:1rem;font-weight:700;margin-bottom:1.2rem;display:flex;align-items:center;justify-content:space-between;}
+.dash-section-title .dsbtn{background:var(--green-pale);color:var(--green);border:none;padding:.4rem .9rem;border-radius:50px;font-size:.78rem;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;}
+
+/* ===== TABLE ===== */
+.data-table{width:100%;border-collapse:collapse;}
+.data-table th{font-size:.75rem;font-weight:700;color:var(--mid);text-transform:uppercase;letter-spacing:1px;padding:.7rem 1rem;border-bottom:2px solid var(--border);text-align:left;}
+.data-table td{padding:.85rem 1rem;font-size:.87rem;border-bottom:1px solid var(--border);color:var(--dark);}
+.data-table tr:hover td{background:var(--cream);}
+.badge{display:inline-block;padding:.2rem .65rem;border-radius:50px;font-size:.72rem;font-weight:600;}
+.badge.green{background:var(--green-pale);color:var(--green);}
+.badge.orange{background:var(--orange-pale);color:var(--orange);}
+.badge.red{background:#fff5f5;color:#e53935;}
+.badge.blue{background:#eff6ff;color:#2563eb;}
+.badge.purple{background:#f5f3ff;color:#7c3aed;}
+
+/* ===== DONATE PAGE ===== */
+.donate-page{padding:7rem 4rem 4rem;background:var(--cream);min-height:100vh;}
+.donate-header{text-align:center;margin-bottom:3rem;}
+.donate-layout{display:grid;grid-template-columns:1.4fr 1fr;gap:3rem;max-width:1100px;margin:0 auto;}
+.donate-form-wrap{background:#fff;border-radius:var(--radius-lg);padding:2.5rem;border:1px solid var(--border);}
+.donate-form-wrap h3{font-family:'Poppins',sans-serif;font-size:1.3rem;font-weight:700;margin-bottom:1.8rem;}
+.ai-box{background:linear-gradient(135deg,var(--dark) 0%,#1a3d1e 100%);border-radius:var(--radius-lg);padding:2rem;color:#fff;margin-bottom:1.5rem;}
+.ai-box h4{font-family:'Poppins',sans-serif;font-size:1rem;font-weight:700;margin-bottom:.5rem;color:var(--orange-light);}
+.ai-rec{background:rgba(255,255,255,.07);border-radius:10px;padding:1rem 1.2rem;font-size:.85rem;color:rgba(255,255,255,.8);line-height:1.6;margin-top:.8rem;border-left:3px solid var(--orange);}
+.ai-tag{display:inline-block;background:rgba(249,115,22,.15);color:var(--orange-light);font-size:.72rem;font-weight:600;padding:.2rem .6rem;border-radius:50px;margin-bottom:.6rem;}
+.upload-zone{border:2px dashed var(--border);border-radius:12px;padding:2rem;text-align:center;cursor:pointer;transition:all .2s;background:var(--cream);}
+.upload-zone:hover{border-color:var(--green-mid);background:var(--green-pale);}
+.upload-icon{font-size:2.5rem;margin-bottom:.8rem;}
+.upload-txt{font-size:.85rem;color:var(--mid);}
+
+/* ===== MAP SECTION ===== */
+.map-page{padding:7rem 0 0;background:var(--dark);min-height:100vh;}
+.map-header{padding:2.5rem 4rem;display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:1.5rem;}
+.map-header h2{font-family:'Poppins',sans-serif;font-size:1.8rem;font-weight:800;color:#fff;}
+.map-header p{color:rgba(255,255,255,.55);font-size:.9rem;margin-top:.3rem;}
+.map-legend{display:flex;flex-wrap:wrap;gap:.8rem;align-items:center;}
+.map-leg-item{display:flex;align-items:center;gap:.4rem;font-size:.78rem;color:rgba(255,255,255,.6);}
+.map-dot{width:10px;height:10px;border-radius:50%;}
+#foodMap{width:100%;height:520px;}
+.map-filters{padding:1.2rem 4rem;background:rgba(255,255,255,.04);border-top:1px solid rgba(255,255,255,.06);display:flex;gap:.8rem;flex-wrap:wrap;}
+.mfbtn{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);color:rgba(255,255,255,.7);padding:.45rem 1rem;border-radius:50px;font-size:.8rem;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .2s;}
+.mfbtn.active,.mfbtn:hover{background:var(--green);border-color:var(--green);color:#fff;}
+
+/* ===== LEADERBOARD ===== */
+.lb-page{padding:7rem 4rem 4rem;min-height:100vh;background:var(--cream);}
+.lb-top3{display:grid;grid-template-columns:1fr 1.15fr 1fr;gap:1.5rem;max-width:760px;margin:2.5rem auto;align-items:end;}
+.lb-card{background:#fff;border-radius:var(--radius-lg);padding:2rem 1.5rem;text-align:center;border:2px solid var(--border);transition:all .3s;}
+.lb-card.gold{border-color:#f59e0b;background:linear-gradient(135deg,#fffbeb,#fff);}
+.lb-card.silver{border-color:#9ca3af;}
+.lb-card.bronze{border-color:#b45309;}
+.lb-avatar{width:64px;height:64px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.6rem;font-weight:800;margin:0 auto .8rem;color:#fff;}
+.lb-avatar.gold{background:linear-gradient(135deg,#f59e0b,#fbbf24);}
+.lb-avatar.silver{background:linear-gradient(135deg,#6b7280,#9ca3af);}
+.lb-avatar.bronze{background:linear-gradient(135deg,#b45309,#d97706);}
+.lb-crown{font-size:1.5rem;margin-bottom:.3rem;}
+.lb-name{font-family:'Poppins',sans-serif;font-weight:700;font-size:1rem;}
+.lb-meals{font-size:.82rem;color:var(--mid);}
+.lb-num{font-family:'Poppins',sans-serif;font-size:1.6rem;font-weight:800;color:var(--green);}
+.lb-list{max-width:760px;margin:0 auto;background:#fff;border-radius:var(--radius-lg);border:1px solid var(--border);overflow:hidden;}
+.lb-row{display:grid;grid-template-columns:60px 1fr auto auto;align-items:center;padding:.95rem 1.5rem;border-bottom:1px solid var(--border);gap:1rem;}
+.lb-row:last-child{border-bottom:none;}
+.lb-row:hover{background:var(--cream);}
+.lb-rank-num{font-family:'Poppins',sans-serif;font-weight:700;color:var(--mid);}
+.lb-row-avatar{width:38px;height:38px;border-radius:50%;background:var(--green-pale);color:var(--green);font-weight:700;font-size:.9rem;display:flex;align-items:center;justify-content:center;}
+
+/* ===== IMPACT DASHBOARD ===== */
+.impact-page{padding:7rem 4rem 4rem;background:var(--cream);min-height:100vh;}
+.impact-hero{background:linear-gradient(135deg,var(--dark),#1a3d1e);border-radius:var(--radius-lg);padding:3rem;margin-bottom:2rem;text-align:center;color:#fff;}
+.impact-hero h2{font-family:'Poppins',sans-serif;font-size:2rem;font-weight:800;margin-bottom:.5rem;}
+.impact-hero p{color:rgba(255,255,255,.6);}
+.impact-big-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:1.2rem;margin-top:2rem;}
+.ibstat{background:rgba(255,255,255,.07);border-radius:12px;padding:1.5rem;text-align:center;}
+.ibstat-num{font-family:'Poppins',sans-serif;font-size:2rem;font-weight:800;color:var(--orange-light);}
+.ibstat-label{font-size:.78rem;color:rgba(255,255,255,.5);margin-top:.3rem;}
+.chart-area{background:#fff;border-radius:var(--radius-lg);padding:2rem;border:1px solid var(--border);margin-bottom:1.5rem;}
+.chart-area h4{font-family:'Poppins',sans-serif;font-size:1rem;font-weight:700;margin-bottom:1.5rem;}
+.bar-chart{display:flex;gap:.8rem;align-items:flex-end;height:160px;}
+.bar-wrap{flex:1;display:flex;flex-direction:column;align-items:center;gap:.5rem;}
+.bar{width:100%;background:linear-gradient(180deg,var(--green-mid),var(--green));border-radius:6px 6px 0 0;transition:all .5s;}
+.bar-label{font-size:.72rem;color:var(--mid);}
+.bar-val{font-size:.72rem;font-weight:700;color:var(--green);}
+
+/* ===== VOLUNTEER DASH ===== */
+.req-card{background:#fff;border-radius:var(--radius);padding:1.4rem;border:1px solid var(--border);margin-bottom:.8rem;display:flex;gap:1.2rem;align-items:flex-start;}
+.req-icon{font-size:2rem;flex-shrink:0;}
+.req-title{font-weight:700;font-size:.95rem;margin-bottom:.3rem;}
+.req-meta{font-size:.8rem;color:var(--mid);}
+.req-actions{margin-left:auto;display:flex;flex-direction:column;gap:.5rem;}
+.req-accept{background:var(--green);color:#fff;border:none;padding:.5rem 1.2rem;border-radius:50px;font-size:.8rem;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;white-space:nowrap;}
+.req-decline{background:transparent;color:var(--mid);border:1px solid var(--border);padding:.5rem 1.2rem;border-radius:50px;font-size:.8rem;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;}
+
+/* ===== ADMIN PANEL ===== */
+.admin-tabs{display:flex;gap:.5rem;margin-bottom:1.8rem;border-bottom:2px solid var(--border);padding-bottom:.5rem;}
+.admin-tab{padding:.5rem 1.2rem;border-radius:8px;font-size:.85rem;font-weight:600;cursor:pointer;border:none;background:transparent;color:var(--mid);font-family:'DM Sans',sans-serif;transition:all .2s;}
+.admin-tab.active{background:var(--green);color:#fff;}
+.admin-panel-content{display:none;}
+.admin-panel-content.active{display:block;}
+
+/* ===== ABOUT ===== */
+.about-page{padding:7rem 4rem 5rem;min-height:100vh;background:#fff;}
+.about-hero{background:linear-gradient(135deg,var(--dark),#1a3d1e);border-radius:var(--radius-lg);padding:4rem;margin-bottom:4rem;color:#fff;text-align:center;}
+.about-hero h2{font-family:'Poppins',sans-serif;font-size:2.5rem;font-weight:800;margin-bottom:1rem;}
+.about-hero p{color:rgba(255,255,255,.65);font-size:1.05rem;line-height:1.7;max-width:600px;margin:0 auto;}
+.mission-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1.5rem;margin-bottom:4rem;}
+.mission-card{background:var(--cream);border-radius:var(--radius-lg);padding:2rem;border:1px solid var(--border);text-align:center;}
+.mission-icon{font-size:2.5rem;margin-bottom:1rem;}
+.mission-card h4{font-family:'Poppins',sans-serif;font-size:1.1rem;font-weight:700;margin-bottom:.7rem;}
+.mission-card p{font-size:.87rem;color:var(--mid);line-height:1.6;}
+
+/* ===== CONTACT ===== */
+.contact-page{padding:7rem 4rem 5rem;min-height:100vh;background:var(--cream);}
+.contact-layout{display:grid;grid-template-columns:1fr 1fr;gap:4rem;max-width:1000px;margin:3rem auto 0;}
+.contact-info h3{font-family:'Poppins',sans-serif;font-size:1.5rem;font-weight:700;margin-bottom:1rem;}
+.contact-info p{color:var(--mid);font-size:.9rem;line-height:1.7;margin-bottom:2rem;}
+.contact-item{display:flex;gap:1rem;align-items:flex-start;margin-bottom:1.2rem;}
+.c-icon{width:42px;height:42px;border-radius:12px;background:var(--green-pale);color:var(--green);display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0;}
+.c-label{font-size:.78rem;color:var(--mid);margin-bottom:.1rem;}
+.c-val{font-size:.9rem;font-weight:600;}
+.contact-form{background:#fff;border-radius:var(--radius-lg);padding:2.5rem;border:1px solid var(--border);}
+.contact-form h3{font-family:'Poppins',sans-serif;font-size:1.2rem;font-weight:700;margin-bottom:1.5rem;}
+.submit-btn{width:100%;background:var(--orange);color:#fff;border:none;border-radius:12px;padding:.88rem;font-family:'DM Sans',sans-serif;font-size:.95rem;font-weight:700;cursor:pointer;margin-top:.5rem;transition:all .2s;}
+.submit-btn:hover{background:var(--orange-light);}
+
+/* ===== ANIMAL SECTION ===== */
+.animal-section{padding:5rem 4rem;background:var(--cream);}
+.animal-header{text-align:center;margin-bottom:3rem;}
+.animal-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:1.5rem;max-width:1000px;margin:0 auto;}
+.animal-card{background:#fff;border-radius:var(--radius-lg);padding:2rem;border:1px solid var(--border);text-align:center;transition:all .3s;}
+.animal-card:hover{transform:translateY(-4px);box-shadow:var(--shadow);}
+.animal-emoji{font-size:3rem;margin-bottom:1rem;}
+.animal-card h4{font-family:'Poppins',sans-serif;font-weight:700;margin-bottom:.5rem;}
+.animal-card p{font-size:.85rem;color:var(--mid);line-height:1.6;margin-bottom:1.2rem;}
+.animal-btn{background:var(--orange-pale);color:var(--orange);border:1px solid rgba(249,115,22,.2);padding:.6rem 1.5rem;border-radius:50px;font-size:.85rem;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .2s;}
+.animal-btn:hover{background:var(--orange);color:#fff;}
+
+/* ===== NOTIFICATION ===== */
+.notif-bar{position:fixed;top:80px;right:1.5rem;z-index:9999;display:flex;flex-direction:column;gap:.6rem;pointer-events:none;}
+.notif{background:#fff;border-radius:12px;padding:1rem 1.2rem;box-shadow:0 8px 32px rgba(0,0,0,.12);border:1px solid var(--border);min-width:280px;max-width:340px;display:flex;gap:.8rem;align-items:flex-start;pointer-events:all;transform:translateX(120%);transition:transform .3s ease;border-left:4px solid var(--green);}
+.notif.show{transform:translateX(0);}
+.notif.orange{border-left-color:var(--orange);}
+.notif-icon{font-size:1.3rem;flex-shrink:0;}
+.notif-title{font-size:.85rem;font-weight:700;margin-bottom:.1rem;}
+.notif-body{font-size:.78rem;color:var(--mid);}
+.notif-close{margin-left:auto;background:none;border:none;cursor:pointer;color:var(--mid);font-size:.9rem;padding:.1rem;}
+
+/* ===== FOOTER ===== */
+footer{background:var(--dark);color:rgba(255,255,255,.5);padding:4rem 4rem 2rem;}
+.footer-grid{display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:3rem;margin-bottom:3rem;}
+.footer-brand .f-logo{font-family:'Poppins',sans-serif;font-size:1.3rem;font-weight:800;color:#fff;margin-bottom:1rem;}
+.footer-brand .f-logo span{color:var(--orange);}
+.footer-brand p{font-size:.85rem;line-height:1.7;}
+.footer-col h6{color:#fff;font-weight:700;font-size:.9rem;margin-bottom:1rem;}
+.footer-col ul{list-style:none;}
+.footer-col li{margin-bottom:.5rem;}
+.footer-col a{color:rgba(255,255,255,.45);text-decoration:none;font-size:.85rem;transition:color .2s;cursor:pointer;}
+.footer-col a:hover{color:var(--green-mid);}
+.footer-bottom{border-top:1px solid rgba(255,255,255,.07);padding-top:1.5rem;text-align:center;font-size:.8rem;}
+
+/* ===== TOAST ===== */
+.toast{position:fixed;bottom:2rem;left:50%;transform:translateX(-50%) translateY(20px);background:var(--dark);color:#fff;padding:.8rem 1.8rem;border-radius:50px;font-size:.88rem;z-index:99998;opacity:0;transition:all .3s;pointer-events:none;white-space:nowrap;}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+.toast.success{background:var(--green);}
+.toast.error{background:#e53935;}
+
+/* ===== UTILS ===== */
+.reveal{opacity:0;transform:translateY(20px);transition:all .6s ease;}
+.reveal.visible{opacity:1;transform:translateY(0);}
+.text-center{text-align:center;}
+.mt-2{margin-top:2rem;}
+.mb-2{margin-bottom:2rem;}
+
+/* ===== RESPONSIVE ===== */
+@media(max-width:1024px){
+  nav{padding:1rem 2rem;}
+  .hero{padding:7rem 2rem 4rem;grid-template-columns:1fr;}
+  .hero-visual{display:none;}
+  section,.stats,.how,.donors,.animal-section{padding:3.5rem 2rem;}
+  .stats-grid,.how-steps,.donors-grid,.impact-big-stats,.mission-grid,.animal-cards{grid-template-columns:1fr 1fr;}
+  .how-steps::before{display:none;}
+  .dash-layout{grid-template-columns:220px 1fr;}
+  .dash-cards{grid-template-columns:1fr 1fr;}
+  .donate-layout,.contact-layout{grid-template-columns:1fr;}
+  .footer-grid{grid-template-columns:1fr 1fr;}
+  .lb-top3{grid-template-columns:1fr;}
+}
+@media(max-width:768px){
+  .nav-links{display:none;}
+  .stats-grid,.how-steps,.donors-grid,.dash-cards,.impact-big-stats,.mission-grid,.animal-cards,.footer-grid{grid-template-columns:1fr;}
+  .dash-layout{grid-template-columns:1fr;}
+  .dash-sidebar{display:none;}
+  .form-row-2{grid-template-columns:1fr;}
+  .map-header,.map-filters,.donate-page,.lb-page,.impact-page,.about-page,.contact-page{padding-left:1.2rem;padding-right:1.2rem;}
+}
+</style>
+</head>
+<body>
+
+<!-- LOADING -->
+<div id="pageLoader">
+  <div class="loader-logo">FoodShare <span>AI</span></div>
+  <div class="loader-bar-bg"><div class="loader-bar" id="loaderBar"></div></div>
+  <div class="loader-txt" id="loaderTxt">Initializing…</div>
+</div>
+
+<!-- NOTIFICATIONS -->
+<div class="notif-bar" id="notifBar"></div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<!-- AUTH OVERLAY -->
+<div id="authOverlay">
+  <div class="auth-modal">
+    <button class="auth-close" onclick="closeAuth()">✕</button>
+    <div class="auth-logo">FoodShare <span>AI</span></div>
+    <div class="auth-sub" id="authSub">Join the movement to end food waste</div>
+    <div class="auth-tabs" id="authTabsWrap">
+      <button class="auth-tab active" onclick="switchAuthTab('login')" id="tabLogin" data-i18n="login">Login</button>
+      <button class="auth-tab" onclick="switchAuthTab('signup')" id="tabSignup" data-i18n="signup">Sign Up</button>
+    </div>
+    <!-- LOGIN -->
+    <div class="auth-panel active" id="loginPanel">
+      <div class="auth-err" id="loginErr"></div>
+      <div class="form-field"><label data-i18n="email">Email Address</label><input type="email" id="loginEmail" placeholder="you@example.com"></div>
+      <div class="form-field"><label data-i18n="password">Password</label><input type="password" id="loginPass" placeholder="••••••••"></div>
+      <button class="auth-btn orange" onclick="doLogin()" data-i18n="loginBtn">Login to Account</button>
+      <div class="auth-free" style="margin-top:1rem;">
+        <span data-i18n="noAccount">Don't have an account?</span> <span style="color:var(--green);font-weight:700;cursor:pointer;" onclick="switchAuthTab('signup')">Sign Up Free</span>
+      </div>
+    </div>
+    <!-- SIGNUP -->
+    <div class="auth-panel" id="signupPanel">
+      <div class="auth-err" id="signupErr"></div>
+      <div class="form-row-2">
+        <div class="form-field"><label data-i18n="fullName">Full Name</label><input type="text" id="sigName" placeholder="Rahul Sharma"></div>
+        <div class="form-field"><label data-i18n="gender">Gender</label>
+          <select id="sigGender"><option value="">Select</option><option>Male</option><option>Female</option><option>Other</option></select>
+        </div>
+      </div>
+      <div class="form-row-2">
+        <div class="form-field"><label data-i18n="phone">Phone Number</label><input type="tel" id="sigPhone" placeholder="+91 98765 43210"></div>
+        <div class="form-field"><label data-i18n="email">Email</label><input type="email" id="sigEmail" placeholder="you@example.com"></div>
+      </div>
+      <div class="form-field"><label data-i18n="userType">User Type</label>
+        <select id="sigType">
+          <option value="">Select Role</option>
+          <option>Restaurant</option><option>Event Organizer</option><option>Household</option>
+          <option>Volunteer</option><option>NGO</option><option>Animal Shelter</option>
+        </select>
+      </div>
+      <div class="form-row-2">
+        <div class="form-field"><label data-i18n="password">Password</label><input type="password" id="sigPass" placeholder="Min 6 chars"></div>
+        <div class="form-field"><label data-i18n="confirmPass">Confirm Password</label><input type="password" id="sigPass2" placeholder="••••••••"></div>
+      </div>
+      <div class="form-field"><label data-i18n="location">Location</label><input type="text" id="sigLoc" placeholder="City, State"></div>
+      <button class="auth-btn" onclick="doSignup()" data-i18n="createAccount">Create Account & Send OTP</button>
+      <div class="auth-free"><span data-i18n="free100">100% Free — No purchases, ever.</span></div>
+    </div>
+    <!-- OTP -->
+    <div class="auth-panel" id="otpPanel">
+      <div style="text-align:center;margin-bottom:1.5rem;">
+        <div style="font-size:3rem;margin-bottom:.5rem;">📧</div>
+        <h3 style="font-family:'Poppins',sans-serif;font-size:1.2rem;font-weight:700;" data-i18n="checkEmail">Check Your Email</h3>
+        <p style="font-size:.84rem;color:var(--mid);margin-top:.4rem;" data-i18n="otpSent">We sent a 6-digit OTP to verify your account.</p>
+      </div>
+      <div class="auth-err" id="otpErr"></div>
+      <div class="auth-success" id="otpSuccess" style="background:var(--green-pale);border:1px solid rgba(26,122,46,.2);color:var(--green);font-size:.8rem;padding:.6rem .9rem;border-radius:8px;margin-bottom:.9rem;display:none;"></div>
+      <div class="otp-boxes" id="otpBoxes">
+        <input class="otp-box" maxlength="1" type="text" inputmode="numeric">
+        <input class="otp-box" maxlength="1" type="text" inputmode="numeric">
+        <input class="otp-box" maxlength="1" type="text" inputmode="numeric">
+        <input class="otp-box" maxlength="1" type="text" inputmode="numeric">
+        <input class="otp-box" maxlength="1" type="text" inputmode="numeric">
+        <input class="otp-box" maxlength="1" type="text" inputmode="numeric">
+      </div>
+      <button class="auth-btn" onclick="verifyOTP()" data-i18n="verifyOTP">Verify OTP</button>
+      <div style="text-align:center;margin-top:.8rem;font-size:.82rem;color:var(--mid);">
+        <span data-i18n="didntReceive">Didn't receive it?</span> <span style="color:var(--green);cursor:pointer;font-weight:600;" onclick="resendOTP()">Resend</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- NAV -->
+<nav id="mainNav">
+  <div class="nav-logo" onclick="showPage('home')">FoodShare <span>AI</span> 🌱</div>
+  <div class="nav-links">
+    <a onclick="showPage('home')" data-i18n="nav_home">Home</a>
+    <a onclick="showPage('about')" data-i18n="nav_about">About</a>
+    <a onclick="showPage('map')" data-i18n="nav_map">Find Food</a>
+    <a onclick="showPage('leaderboard')" data-i18n="nav_leaderboard">Leaderboard</a>
+    <a onclick="showPage('impact')" data-i18n="nav_impact">Impact</a>
+    <a onclick="showPage('contact')" data-i18n="nav_contact">Contact</a>
+  </div>
+  <div class="nav-actions">
+    <div class="lang-toggle">
+      <button class="lang-btn active" onclick="setLang('en')">EN</button>
+      <button class="lang-btn" onclick="setLang('hi')">हिंदी</button>
+    </div>
+    <div id="navAuthBtns">
+      <button class="btn-nav" onclick="openAuth('login')" data-i18n="nav_login">Login</button>
+    </div>
+    <div id="navUserBlock" style="display:none;">
+      <div class="user-nav-avatar" id="navAvatar">U
+        <div class="user-nav-menu">
+          <div class="unm-item" id="menuName" style="font-weight:700;color:var(--dark);pointer-events:none;">User</div>
+          <div class="unm-item" onclick="showDash('donor')" data-i18n="myDashboard">My Dashboard</div>
+          <div class="unm-item" onclick="showPage('donate')" data-i18n="donateFoodNav">Donate Food</div>
+          <div class="unm-item red" onclick="doLogout()" data-i18n="logout">Sign Out</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</nav>
+
+<!-- =================== HOME PAGE =================== -->
+<div class="page active" id="page-home">
+
+  <!-- HERO -->
+  <section class="hero">
+    <div class="hero-content">
+      <div class="hero-badge">🌍 <span data-i18n="hero_badge">India's #1 Food Waste Platform</span></div>
+      <h1 data-i18n="hero_h1">Turn Extra Food Into <em>Hope</em> Instead of Waste</h1>
+      <p data-i18n="hero_p">Connect surplus food with people and animals who need it the most. AI-powered, real-time, and completely free.</p>
+      <div class="hero-actions">
+        <button class="btn-primary" onclick="showPage('donate')" data-i18n="donateFoodBtn">🍽 Donate Food</button>
+        <button class="btn-green" onclick="showPage('map')" data-i18n="findFoodBtn">📍 Find Food</button>
+        <button class="btn-outline" onclick="openAuth('signup')" data-i18n="volunteerBtn">🤝 Become Volunteer</button>
+      </div>
+    </div>
+    <div class="hero-visual">
+      <div class="hero-cards">
+        <div class="h-card"><div class="h-card-icon">🍱</div><div><div class="h-card-stat" id="hMeals">0</div><div class="h-card-label" data-i18n="mealsSaved">Meals Saved Today</div></div></div>
+        <div class="h-card"><div class="h-card-icon">🏘️</div><div><div class="h-card-stat" id="hPeople">0</div><div class="h-card-label" data-i18n="peopleFed">People Fed</div></div></div>
+        <div class="h-card"><div class="h-card-icon">🐾</div><div><div class="h-card-stat" id="hAnimals">0</div><div class="h-card-label" data-i18n="animalsFed">Animals Fed</div></div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- STATS -->
+  <section class="stats">
+    <div class="stats-header reveal">
+      <div class="section-tag" data-i18n="impact_tag">Platform Impact</div>
+      <h2 class="section-title"><em data-i18n="realTime">Real-Time</em> <span data-i18n="statistics">Statistics</span></h2>
+      <p class="section-sub" data-i18n="stats_sub">Every meal saved is a life touched. Watch our impact grow in real time.</p>
+    </div>
+    <div class="stats-grid">
+      <div class="stat-card reveal"><div class="stat-icon">🍽️</div><div class="stat-num" id="stat1">0</div><div class="stat-label" data-i18n="totalMeals">Total Meals Saved</div></div>
+      <div class="stat-card reveal"><div class="stat-icon">♻️</div><div class="stat-num" id="stat2">0</div><div class="stat-label" data-i18n="wasteReduced">Food Waste Reduced (kg)</div></div>
+      <div class="stat-card reveal"><div class="stat-icon">👨‍👩‍👧</div><div class="stat-num" id="stat3">0</div><div class="stat-label" data-i18n="peopleFedStat">People Fed</div></div>
+      <div class="stat-card reveal"><div class="stat-icon">🐕</div><div class="stat-num" id="stat4">0</div><div class="stat-label" data-i18n="animalsFedStat">Animals Fed</div></div>
+      <div class="stat-card reveal"><div class="stat-icon">🏛️</div><div class="stat-num" id="stat5">0</div><div class="stat-label" data-i18n="activeNGOs">Active NGOs</div></div>
+      <div class="stat-card reveal"><div class="stat-icon">🙋</div><div class="stat-num" id="stat6">0</div><div class="stat-label" data-i18n="activeVols">Active Volunteers</div></div>
+    </div>
+  </section>
+
+  <!-- HOW IT WORKS -->
+  <section class="how" id="how-section">
+    <div class="how-header reveal">
+      <div class="section-tag" data-i18n="how_tag">How It Works</div>
+      <h2 class="section-title" data-i18n="how_title">Simple. Smart. <em>Impactful.</em></h2>
+      <p class="section-sub" style="margin:0 auto;" data-i18n="how_sub">From donation to delivery in 4 easy steps.</p>
+    </div>
+    <div class="how-steps">
+      <div class="how-step reveal"><div class="step-num">1</div><h4 data-i18n="step1_h">Create Account</h4><p data-i18n="step1_p">Register in seconds. Choose your role: Donor, Volunteer, NGO, or Shelter.</p></div>
+      <div class="how-step reveal"><div class="step-num">2</div><h4 data-i18n="step2_h">Add Food Details</h4><p data-i18n="step2_p">Upload food info, quantity, expiry, and pickup time. AI analyzes and recommends best matches.</p></div>
+      <div class="how-step reveal"><div class="step-num">3</div><h4 data-i18n="step3_h">NGOs Get Notified</h4><p data-i18n="step3_p">Nearby NGOs and volunteers receive instant notifications about available food.</p></div>
+      <div class="how-step reveal"><div class="step-num">4</div><h4 data-i18n="step4_h">Food Gets Delivered</h4><p data-i18n="step4_p">Volunteers collect and deliver food to people or animals in need. Zero waste!</p></div>
+    </div>
+  </section>
+
+  <!-- ANIMAL SECTION -->
+  <section class="animal-section">
+    <div class="animal-header reveal">
+      <div class="section-tag" data-i18n="animal_tag">Animal Welfare</div>
+      <h2 class="section-title" data-i18n="animal_title">Feed Animals, <em>Not Landfills</em></h2>
+      <p class="section-sub" style="margin:0 auto;" data-i18n="animal_sub">Surplus food can save stray animals. Connect with shelters near you.</p>
+    </div>
+    <div class="animal-cards">
+      <div class="animal-card reveal"><div class="animal-emoji">🐕</div><h4 data-i18n="dogs">Stray Dogs</h4><p data-i18n="dogs_p">Cooked rice, bread, and vegetable scraps can feed thousands of stray dogs across India.</p><button class="animal-btn" onclick="showPage('donate')" data-i18n="donateDogs">Donate for Dogs</button></div>
+      <div class="animal-card reveal"><div class="animal-emoji">🐄</div><h4 data-i18n="cattle">Cattle & Cows</h4><p data-i18n="cattle_p">Vegetable peels and grain waste make excellent feed for cattle and cows in rural areas.</p><button class="animal-btn" onclick="showPage('donate')" data-i18n="donateCattle">Donate for Cattle</button></div>
+      <div class="animal-card reveal"><div class="animal-emoji">🐦</div><h4 data-i18n="birds">Birds & Others</h4><p data-i18n="birds_p">Grain waste, seeds, and fruits can feed thousands of birds and small animals daily.</p><button class="animal-btn" onclick="showPage('donate')" data-i18n="donateBirds">Donate for Birds</button></div>
+    </div>
+  </section>
+
+  <!-- TOP DONORS -->
+  <section class="donors">
+    <div class="donors-header reveal">
+      <div class="section-tag" data-i18n="top_tag">Community Heroes</div>
+      <h2 class="section-title" data-i18n="top_title">Top <em>Donors</em> This Month</h2>
+      <p class="section-sub" style="margin:0 auto;" data-i18n="top_sub">These incredible people are making a real difference every day.</p>
+    </div>
+    <div class="donors-grid">
+      <div class="donor-card reveal"><div class="donor-rank gold">1</div><div class="donor-avatar">R</div><div class="donor-info"><div class="donor-info h5" style="font-weight:700;">Rahul Sharma</div><div class="donor-meals">250 meals donated</div><div class="donor-stars">★★★★★</div></div></div>
+      <div class="donor-card reveal"><div class="donor-rank silver">2</div><div class="donor-avatar">A</div><div class="donor-info"><div class="donor-info h5" style="font-weight:700;">Anita Verma</div><div class="donor-meals">190 meals donated</div><div class="donor-stars">★★★★★</div></div></div>
+      <div class="donor-card reveal"><div class="donor-rank bronze">3</div><div class="donor-avatar">A</div><div class="donor-info"><div class="donor-info h5" style="font-weight:700;">Ahmed Khan</div><div class="donor-meals">150 meals donated</div><div class="donor-stars">★★★★☆</div></div></div>
+      <div class="donor-card reveal"><div class="donor-rank">4</div><div class="donor-avatar" style="background:var(--orange);">P</div><div class="donor-info"><div class="donor-info h5" style="font-weight:700;">Priya Patel</div><div class="donor-meals">130 meals donated</div><div class="donor-stars">★★★★☆</div></div></div>
+      <div class="donor-card reveal"><div class="donor-rank">5</div><div class="donor-avatar" style="background:#7c3aed;">S</div><div class="donor-info"><div class="donor-info h5" style="font-weight:700;">Suresh Kumar</div><div class="donor-meals">110 meals donated</div><div class="donor-stars">★★★★☆</div></div></div>
+      <div class="donor-card reveal"><div class="donor-rank">6</div><div class="donor-avatar" style="background:#0891b2;">M</div><div class="donor-info"><div class="donor-info h5" style="font-weight:700;">Meena Joshi</div><div class="donor-meals">95 meals donated</div><div class="donor-stars">★★★★☆</div></div></div>
+    </div>
+    <div class="text-center mt-2"><button class="btn-primary" onclick="showPage('leaderboard')" data-i18n="viewLeaderboard">View Full Leaderboard →</button></div>
+  </section>
+
+</div><!-- end home -->
+
+<!-- =================== ABOUT PAGE =================== -->
+<div class="page" id="page-about">
+  <div class="about-page">
+    <div class="about-hero reveal">
+      <div class="section-tag" style="color:var(--orange-light);" data-i18n="about_tag">About FoodShare AI</div>
+      <h2 data-i18n="about_h">We Believe No Food Should Be Wasted</h2>
+      <p data-i18n="about_p">FoodShare AI is India's smartest food waste management platform, connecting surplus food from restaurants, events, and households to NGOs, volunteers, and animal shelters using artificial intelligence and real-time location services.</p>
+    </div>
+    <div class="mission-grid">
+      <div class="mission-card reveal"><div class="mission-icon">🎯</div><h4 data-i18n="our_mission">Our Mission</h4><p data-i18n="mission_p">Eliminate preventable food waste in India by creating a seamless bridge between food surplus and food need.</p></div>
+      <div class="mission-card reveal"><div class="mission-icon">🤖</div><h4 data-i18n="ai_powered">AI-Powered</h4><p data-i18n="ai_p">Our AI analyzes food quantity, expiry times, and local demand to recommend the fastest and most impactful redistribution.</p></div>
+      <div class="mission-card reveal"><div class="mission-icon">🌱</div><h4 data-i18n="sustainable">Sustainable</h4><p data-i18n="sustainable_p">Every meal redirected from landfill reduces methane emissions and supports sustainable food systems across India.</p></div>
+    </div>
+    <div style="background:#fff;border-radius:var(--radius-lg);padding:3rem;border:1px solid var(--border);">
+      <div class="section-tag" data-i18n="impact_tag">Our Impact Numbers</div>
+      <h2 class="section-title" data-i18n="numbers_title">Numbers That <em>Matter</em></h2>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1.5rem;margin-top:2rem;">
+        <div style="text-align:center;"><div style="font-family:'Poppins',sans-serif;font-size:2.5rem;font-weight:800;color:var(--green);">12,400+</div><div style="font-size:.85rem;color:var(--mid);" data-i18n="mealsNum">Meals Saved</div></div>
+        <div style="text-align:center;"><div style="font-family:'Poppins',sans-serif;font-size:2.5rem;font-weight:800;color:var(--orange);">340+</div><div style="font-size:.85rem;color:var(--mid);" data-i18n="ngoNum">Partner NGOs</div></div>
+        <div style="text-align:center;"><div style="font-family:'Poppins',sans-serif;font-size:2.5rem;font-weight:800;color:var(--green);">1,200+</div><div style="font-size:.85rem;color:var(--mid);" data-i18n="volNum">Volunteers</div></div>
+        <div style="text-align:center;"><div style="font-family:'Poppins',sans-serif;font-size:2.5rem;font-weight:800;color:var(--orange);">28</div><div style="font-size:.85rem;color:var(--mid);" data-i18n="citiesNum">Cities Covered</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- =================== DONATE PAGE =================== -->
+<div class="page" id="page-donate">
+  <div class="donate-page">
+    <div class="donate-header reveal">
+      <div class="section-tag" data-i18n="donate_tag">Food Donation</div>
+      <h2 class="section-title" data-i18n="donate_title">Donate Surplus <em>Food</em></h2>
+      <p class="section-sub" style="margin:0 auto;" data-i18n="donate_sub">Fill in the details below and let AI match your food with the nearest recipient.</p>
+    </div>
+    <div class="donate-layout">
+      <div class="donate-form-wrap reveal">
+        <h3 data-i18n="foodDetails">🍱 Food Donation Details</h3>
+        <div class="form-row-2">
+          <div class="form-field"><label data-i18n="foodName">Food Name</label><input type="text" id="dFoodName" placeholder="e.g. Biryani, Roti, Dal"></div>
+          <div class="form-field"><label data-i18n="foodCategory">Category</label>
+            <select id="dCategory"><option>Vegetarian</option><option>Non-Vegetarian</option><option>Vegan</option><option>Mixed</option></select>
+          </div>
+        </div>
+        <div class="form-row-2">
+          <div class="form-field"><label data-i18n="quantity">Quantity (meals)</label><input type="number" id="dQty" placeholder="e.g. 50" min="1"></div>
+          <div class="form-field"><label data-i18n="cookTime">Cooking Time</label><input type="datetime-local" id="dCookTime"></div>
+        </div>
+        <div class="form-row-2">
+          <div class="form-field"><label data-i18n="expiryTime">Expiry Time</label><input type="datetime-local" id="dExpiry"></div>
+          <div class="form-field"><label data-i18n="pickupTime">Pickup By</label><input type="datetime-local" id="dPickup"></div>
+        </div>
+        <div class="form-field"><label data-i18n="donateFor">Donate For</label>
+          <select id="dFor"><option>People</option><option>Animals</option><option>Both</option></select>
+        </div>
+        <div class="form-field"><label data-i18n="location">Pickup Location</label><input type="text" id="dLocation" placeholder="Full address or click to auto-detect"></div>
+        <div class="upload-zone" onclick="showToast('Image upload ready!','success')">
+          <div class="upload-icon">📷</div>
+          <div class="upload-txt" data-i18n="uploadPhoto">Click to upload food photo (optional)</div>
+        </div>
+        <button class="auth-btn" style="margin-top:1.2rem;" onclick="submitDonation()" data-i18n="submitDonation">🚀 Submit Donation</button>
+      </div>
+      <div>
+        <div class="ai-box reveal">
+          <div class="ai-tag">🤖 AI ANALYSIS</div>
+          <h4 data-i18n="aiRec">Smart Recommendation</h4>
+          <div class="ai-rec" id="aiRecBox" data-i18n="aiDefault">Fill in the form and our AI will analyze your food and recommend the best distribution strategy in real-time.</div>
+        </div>
+        <div class="dash-section reveal" style="margin-top:1.2rem;">
+          <div class="dash-section-title" data-i18n="nearbyRecipients">Nearby Recipients</div>
+          <div id="nearbyList">
+            <div class="req-card"><div class="req-icon">🏛️</div><div><div class="req-title">Asha NGO – Delhi</div><div class="req-meta">📍 1.2 km away • Feeds 200+ people daily</div></div><div class="req-actions"><button class="req-accept" onclick="showToast('Notified Asha NGO!','success')">Notify</button></div></div>
+            <div class="req-card"><div class="req-icon">🐾</div><div><div class="req-title">Paws Animal Shelter</div><div class="req-meta">📍 2.4 km away • 80+ animals</div></div><div class="req-actions"><button class="req-accept" onclick="showToast('Notified Paws Shelter!','success')">Notify</button></div></div>
+            <div class="req-card"><div class="req-icon">🤝</div><div><div class="req-title">Rahul (Volunteer)</div><div class="req-meta">📍 0.8 km away • 4.9 ★</div></div><div class="req-actions"><button class="req-accept" onclick="showToast('Rahul has been notified!','success')">Assign</button></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- =================== MAP PAGE =================== -->
+<div class="page" id="page-map">
+  <div class="map-page">
+    <div class="map-header">
+      <div>
+        <div class="section-tag" style="color:var(--orange);" data-i18n="map_tag">Live Food Map</div>
+        <h2 data-i18n="map_title">Find Food & Resources Near You</h2>
+        <p data-i18n="map_sub">Real-time map of food donors, NGOs, volunteers, and animal shelters across India.</p>
+      </div>
+      <div class="map-legend">
+        <div class="map-leg-item"><div class="map-dot" style="background:#28a745;"></div><span data-i18n="leg_donor">Food Donors</span></div>
+        <div class="map-leg-item"><div class="map-dot" style="background:#f97316;"></div><span data-i18n="leg_ngo">NGOs</span></div>
+        <div class="map-leg-item"><div class="map-dot" style="background:#3b82f6;"></div><span data-i18n="leg_vol">Volunteers</span></div>
+        <div class="map-leg-item"><div class="map-dot" style="background:#a855f7;"></div><span data-i18n="leg_shelter">Animal Shelters</span></div>
+      </div>
+    </div>
+    <div class="map-filters">
+      <button class="mfbtn active" onclick="filterMap(this,'all')" data-i18n="filter_all">All</button>
+      <button class="mfbtn" onclick="filterMap(this,'donor')" data-i18n="filter_donor">Food Donors</button>
+      <button class="mfbtn" onclick="filterMap(this,'ngo')" data-i18n="filter_ngo">NGOs</button>
+      <button class="mfbtn" onclick="filterMap(this,'volunteer')" data-i18n="filter_vol">Volunteers</button>
+      <button class="mfbtn" onclick="filterMap(this,'shelter')" data-i18n="filter_shelter">Animal Shelters</button>
+    </div>
+    <div id="foodMap"></div>
+  </div>
+</div>
+
+<!-- =================== LEADERBOARD =================== -->
+<div class="page" id="page-leaderboard">
+  <div class="lb-page">
+    <div class="text-center reveal">
+      <div class="section-tag" data-i18n="lb_tag">Hall of Fame</div>
+      <h2 class="section-title" data-i18n="lb_title">FoodShare <em>Leaderboard</em></h2>
+      <p class="section-sub" style="margin:0 auto;" data-i18n="lb_sub">Top food heroes making India hunger-free, one meal at a time.</p>
+    </div>
+    <div class="lb-top3 reveal">
+      <div class="lb-card silver">
+        <div class="lb-crown">🥈</div>
+        <div class="lb-avatar silver">A</div>
+        <div class="lb-name">Anita Verma</div>
+        <div class="lb-meals">Mumbai</div>
+        <div class="lb-num" style="color:var(--orange);">190</div>
+        <div style="font-size:.78rem;color:var(--mid);">meals donated</div>
+        <div style="color:var(--orange);font-size:.85rem;margin-top:.3rem;">★★★★★</div>
+      </div>
+      <div class="lb-card gold">
+        <div class="lb-crown">🏆</div>
+        <div class="lb-avatar gold">R</div>
+        <div class="lb-name">Rahul Sharma</div>
+        <div class="lb-meals">Delhi</div>
+        <div class="lb-num" style="font-size:2.2rem;">250</div>
+        <div style="font-size:.78rem;color:var(--mid);">meals donated</div>
+        <div style="color:var(--orange);font-size:.9rem;margin-top:.3rem;">★★★★★</div>
+        <div class="badge green" style="margin-top:.5rem;">Super Donor</div>
+      </div>
+      <div class="lb-card bronze">
+        <div class="lb-crown">🥉</div>
+        <div class="lb-avatar bronze">A</div>
+        <div class="lb-name">Ahmed Khan</div>
+        <div class="lb-meals">Hyderabad</div>
+        <div class="lb-num" style="color:var(--orange);">150</div>
+        <div style="font-size:.78rem;color:var(--mid);">meals donated</div>
+        <div style="color:var(--orange);font-size:.85rem;margin-top:.3rem;">★★★★☆</div>
+      </div>
+    </div>
+    <div class="lb-list reveal">
+      <div class="lb-row" style="background:var(--cream);font-size:.75rem;font-weight:700;color:var(--mid);text-transform:uppercase;letter-spacing:1px;">
+        <div>#</div><div data-i18n="lb_name">Name</div><div data-i18n="lb_meals">Meals</div><div data-i18n="lb_rating">Rating</div>
+      </div>
+      <div class="lb-row"><div class="lb-rank-num">4</div><div style="display:flex;align-items:center;gap:.8rem;"><div class="lb-row-avatar">P</div><div><div style="font-weight:600;">Priya Patel</div><div style="font-size:.78rem;color:var(--mid);">Bangalore</div></div></div><div style="font-weight:700;color:var(--green);">130</div><div style="color:var(--orange);">★★★★☆</div></div>
+      <div class="lb-row"><div class="lb-rank-num">5</div><div style="display:flex;align-items:center;gap:.8rem;"><div class="lb-row-avatar" style="background:#f5f3ff;color:#7c3aed;">S</div><div><div style="font-weight:600;">Suresh Kumar</div><div style="font-size:.78rem;color:var(--mid);">Chennai</div></div></div><div style="font-weight:700;color:var(--green);">110</div><div style="color:var(--orange);">★★★★☆</div></div>
+      <div class="lb-row"><div class="lb-rank-num">6</div><div style="display:flex;align-items:center;gap:.8rem;"><div class="lb-row-avatar" style="background:#eff6ff;color:#2563eb;">M</div><div><div style="font-weight:600;">Meena Joshi</div><div style="font-size:.78rem;color:var(--mid);">Pune</div></div></div><div style="font-weight:700;color:var(--green);">95</div><div style="color:var(--orange);">★★★★☆</div></div>
+      <div class="lb-row"><div class="lb-rank-num">7</div><div style="display:flex;align-items:center;gap:.8rem;"><div class="lb-row-avatar" style="background:#fff4ed;color:var(--orange);">V</div><div><div style="font-weight:600;">Vikram Singh</div><div style="font-size:.78rem;color:var(--mid);">Jaipur</div></div></div><div style="font-weight:700;color:var(--green);">88</div><div style="color:var(--orange);">★★★★☆</div></div>
+      <div class="lb-row"><div class="lb-rank-num">8</div><div style="display:flex;align-items:center;gap:.8rem;"><div class="lb-row-avatar" style="background:var(--green-pale);color:var(--green);">K</div><div><div style="font-weight:600;">Kavya Nair</div><div style="font-size:.78rem;color:var(--mid);">Kochi</div></div></div><div style="font-weight:700;color:var(--green);">75</div><div style="color:var(--orange);">★★★☆☆</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- =================== IMPACT PAGE =================== -->
+<div class="page" id="page-impact">
+  <div class="impact-page">
+    <div class="text-center reveal">
+      <div class="section-tag" data-i18n="impact_tag2">Platform Impact</div>
+      <h2 class="section-title" data-i18n="impact_h">Every Number <em>Tells a Story</em></h2>
+      <p class="section-sub" style="margin:0 auto;" data-i18n="impact_sub2">Real data, real lives changed. Updated in real-time.</p>
+    </div>
+    <div class="impact-hero reveal" style="margin-top:2rem;">
+      <h2 data-i18n="impact_together">Together, We've Saved</h2>
+      <p data-i18n="impact_together_sub">Cumulative impact since platform launch — growing every hour.</p>
+      <div class="impact-big-stats">
+        <div class="ibstat"><div class="ibstat-num">12,400+</div><div class="ibstat-label" data-i18n="mealsNum">Meals Saved</div></div>
+        <div class="ibstat"><div class="ibstat-num">4,900 kg</div><div class="ibstat-label" data-i18n="wasteKg">Food Waste Avoided</div></div>
+        <div class="ibstat"><div class="ibstat-num">8,200</div><div class="ibstat-label" data-i18n="peopleFedStat">People Fed</div></div>
+        <div class="ibstat"><div class="ibstat-num">3,100</div><div class="ibstat-label" data-i18n="animalsFedStat">Animals Fed</div></div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;">
+      <div class="chart-area reveal">
+        <h4 data-i18n="monthlyMeals">Monthly Meals Saved</h4>
+        <div class="bar-chart" id="barChart1"></div>
+      </div>
+      <div class="chart-area reveal">
+        <h4 data-i18n="monthlyWaste">Food Waste Avoided (kg)</h4>
+        <div class="bar-chart" id="barChart2"></div>
+      </div>
+    </div>
+    <div class="chart-area reveal" style="margin-top:1.5rem;">
+      <h4 data-i18n="cityBreakdown">City-wise Breakdown</h4>
+      <table class="data-table">
+        <thead><tr><th data-i18n="city">City</th><th data-i18n="mealsNum">Meals</th><th data-i18n="ngoNum">NGOs</th><th data-i18n="volNum">Volunteers</th><th data-i18n="status">Status</th></tr></thead>
+        <tbody>
+          <tr><td>🏙️ Delhi</td><td>3,200</td><td>42</td><td>180</td><td><span class="badge green">Active</span></td></tr>
+          <tr><td>🌊 Mumbai</td><td>2,800</td><td>38</td><td>155</td><td><span class="badge green">Active</span></td></tr>
+          <tr><td>💻 Bangalore</td><td>2,100</td><td>29</td><td>120</td><td><span class="badge green">Active</span></td></tr>
+          <tr><td>🌶️ Hyderabad</td><td>1,500</td><td>22</td><td>90</td><td><span class="badge green">Active</span></td></tr>
+          <tr><td>🏛️ Chennai</td><td>1,200</td><td>18</td><td>75</td><td><span class="badge orange">Growing</span></td></tr>
+          <tr><td>🎨 Kolkata</td><td>980</td><td>15</td><td>62</td><td><span class="badge orange">Growing</span></td></tr>
+          <tr><td>🌸 Jaipur</td><td>620</td><td>10</td><td>40</td><td><span class="badge blue">New</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- =================== CONTACT PAGE =================== -->
+<div class="page" id="page-contact">
+  <div class="contact-page">
+    <div class="text-center reveal">
+      <div class="section-tag" data-i18n="contact_tag">Get In Touch</div>
+      <h2 class="section-title" data-i18n="contact_title">We'd Love to <em>Hear From You</em></h2>
+      <p class="section-sub" style="margin:0 auto;" data-i18n="contact_sub">Have questions? Want to partner? We're here to help.</p>
+    </div>
+    <div class="contact-layout">
+      <div class="contact-info reveal">
+        <h3 data-i18n="contactInfo">Contact Information</h3>
+        <p data-i18n="contact_info_p">Whether you're a restaurant, NGO, or volunteer, reach out and we'll get back to you within 24 hours.</p>
+        <div class="contact-item"><div class="c-icon">📧</div><div><div class="c-label" data-i18n="email">Email</div><div class="c-val">satishparmar78787@gmail.com</div></div></div>
+        <div class="contact-item"><div class="c-icon">📞</div><div><div class="c-label" data-i18n="phone">Phone</div><div class="c-val">+91 98765 43210</div></div></div>
+        <div class="contact-item"><div class="c-icon">📍</div><div><div class="c-label" data-i18n="address">Address</div><div class="c-val">New Delhi, India — 110001</div></div></div>
+        <div class="contact-item"><div class="c-icon">⏰</div><div><div class="c-label" data-i18n="hours">Working Hours</div><div class="c-val">Mon–Sat, 9 AM – 6 PM IST</div></div></div>
+      </div>
+      <div class="contact-form reveal">
+        <h3 data-i18n="sendMessage">Send a Message</h3>
+        <div class="form-row-2">
+          <div class="form-field"><label data-i18n="fullName">Full Name</label><input type="text" placeholder="Your name"></div>
+          <div class="form-field"><label data-i18n="email">Email</label><input type="email" placeholder="you@example.com"></div>
+        </div>
+        <div class="form-field"><label data-i18n="subject">Subject</label><input type="text" placeholder="How can we help?"></div>
+        <div class="form-field"><label data-i18n="message">Message</label><textarea rows="5" placeholder="Write your message here..."></textarea></div>
+        <button class="submit-btn" onclick="showToast('Message sent! We'll reply within 24 hours.','success')" data-i18n="sendBtn">Send Message →</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- =================== DASHBOARD (DONOR) =================== -->
+<div class="page" id="page-dashboard">
+  <div class="dash-layout">
+    <div class="dash-sidebar">
+      <div class="dash-sidebar-logo">FoodShare <span>AI</span></div>
+      <div class="sidebar-section" data-i18n="main_menu">Main Menu</div>
+      <div class="sidebar-item active" onclick="setDashView('overview')"><div class="si-icon">📊</div><span data-i18n="overview">Overview</span></div>
+      <div class="sidebar-item" onclick="setDashView('donations')"><div class="si-icon">🍱</div><span data-i18n="myDonations">My Donations</span><div class="si-badge">3</div></div>
+      <div class="sidebar-item" onclick="setDashView('deliveries')"><div class="si-icon">🚴</div><span data-i18n="deliveries">Deliveries</span></div>
+      <div class="sidebar-item" onclick="setDashView('requests')"><div class="si-icon">📬</div><span data-i18n="requests">Requests</span><div class="si-badge">2</div></div>
+      <div class="sidebar-section" data-i18n="tools">Tools</div>
+      <div class="sidebar-item" onclick="showPage('map')"><div class="si-icon">🗺️</div><span data-i18n="foodMap">Food Map</span></div>
+      <div class="sidebar-item" onclick="showPage('donate')"><div class="si-icon">➕</div><span data-i18n="newDonation">New Donation</span></div>
+      <div class="sidebar-item" onclick="setDashView('profile')"><div class="si-icon">👤</div><span data-i18n="profile">Profile</span></div>
+      <div class="sidebar-section" data-i18n="admin_menu">Admin</div>
+      <div class="sidebar-item" onclick="setDashView('admin')"><div class="si-icon">🛡️</div><span data-i18n="adminPanel">Admin Panel</span></div>
+      <div class="sidebar-item" style="margin-top:auto;" onclick="doLogout()"><div class="si-icon">🚪</div><span data-i18n="logout">Sign Out</span></div>
+    </div>
+    <div class="dash-main">
+      <!-- OVERVIEW -->
+      <div id="dv-overview">
+        <div class="dash-top">
+          <div><h2 data-i18n="welcome_dash">Welcome back! 👋</h2><p id="dashGreet">Here's your impact summary.</p></div>
+          <button class="btn-primary" onclick="showPage('donate')" data-i18n="newDonation">+ New Donation</button>
+        </div>
+        <div class="dash-cards">
+          <div class="dash-card"><div class="dash-card-icon" style="background:var(--green-pale);">🍱</div><div class="dash-card-num">23</div><div class="dash-card-label" data-i18n="myDonations">My Donations</div><div class="dash-card-trend">↑ +3 this week</div></div>
+          <div class="dash-card"><div class="dash-card-icon" style="background:var(--orange-pale);">🍽️</div><div class="dash-card-num">410</div><div class="dash-card-label" data-i18n="mealsSaved">Meals Saved</div><div class="dash-card-trend">↑ +45 this month</div></div>
+          <div class="dash-card"><div class="dash-card-icon" style="background:#eff6ff;">⭐</div><div class="dash-card-num">4.8</div><div class="dash-card-label" data-i18n="myRating">My Rating</div><div class="dash-card-trend">Top 5% donor</div></div>
+          <div class="dash-card"><div class="dash-card-icon" style="background:#f5f3ff;">🏆</div><div class="dash-card-num">#4</div><div class="dash-card-label" data-i18n="leaderboardRank">Leaderboard Rank</div><div class="dash-card-trend">↑ Up 2 spots</div></div>
+        </div>
+        <div class="dash-section">
+          <div class="dash-section-title"><span data-i18n="recentDonations">Recent Donations</span><button class="dsbtn" onclick="showPage('donate')">+ Add New</button></div>
+          <table class="data-table">
+            <thead><tr><th data-i18n="food">Food</th><th data-i18n="quantity">Qty</th><th data-i18n="status">Status</th><th data-i18n="recipient">Recipient</th><th data-i18n="date">Date</th></tr></thead>
+            <tbody>
+              <tr><td>🍛 Biryani</td><td>30 meals</td><td><span class="badge green">Delivered</span></td><td>Asha NGO</td><td>Today</td></tr>
+              <tr><td>🥗 Salad Mix</td><td>15 meals</td><td><span class="badge orange">In Transit</span></td><td>Rahul (Vol)</td><td>Yesterday</td></tr>
+              <tr><td>🍞 Bread</td><td>20 meals</td><td><span class="badge blue">Pending</span></td><td>Paws Shelter</td><td>2 days ago</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="dash-section">
+          <div class="dash-section-title" data-i18n="nearbyRequests">Nearby Food Requests</div>
+          <div class="req-card"><div class="req-icon">🏛️</div><div><div class="req-title">Hope Foundation – Delhi</div><div class="req-meta">📍 1.5 km • Needs 50 meals • Vegetarian</div></div><div class="req-actions"><button class="req-accept" onclick="showToast('Donation matched!','success')" data-i18n="match">Match</button></div></div>
+          <div class="req-card"><div class="req-icon">🐕</div><div><div class="req-title">Stray Animal Care – Delhi</div><div class="req-meta">📍 2.1 km • Needs cooked rice/bread</div></div><div class="req-actions"><button class="req-accept" onclick="showToast('Matched with shelter!','success')" data-i18n="match">Match</button></div></div>
+        </div>
+      </div>
+      <!-- DONATIONS VIEW -->
+      <div id="dv-donations" style="display:none;">
+        <div class="dash-top"><div><h2 data-i18n="myDonations">My Donations</h2><p data-i18n="donationsDesc">Track all your food donations.</p></div><button class="btn-primary" onclick="showPage('donate')">+ New</button></div>
+        <div class="dash-section">
+          <table class="data-table">
+            <thead><tr><th>#</th><th data-i18n="food">Food</th><th data-i18n="quantity">Qty</th><th data-i18n="donateFor">For</th><th data-i18n="status">Status</th><th data-i18n="date">Date</th></tr></thead>
+            <tbody>
+              <tr><td>1</td><td>🍛 Biryani</td><td>30</td><td>People</td><td><span class="badge green">Delivered</span></td><td>Mar 14</td></tr>
+              <tr><td>2</td><td>🥗 Salad</td><td>15</td><td>People</td><td><span class="badge orange">In Transit</span></td><td>Mar 13</td></tr>
+              <tr><td>3</td><td>🍞 Bread</td><td>20</td><td>Animals</td><td><span class="badge blue">Pending</span></td><td>Mar 12</td></tr>
+              <tr><td>4</td><td>🍚 Rice</td><td>40</td><td>Both</td><td><span class="badge green">Delivered</span></td><td>Mar 10</td></tr>
+              <tr><td>5</td><td>🫓 Roti</td><td>60</td><td>People</td><td><span class="badge green">Delivered</span></td><td>Mar 8</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <!-- REQUESTS VIEW -->
+      <div id="dv-requests" style="display:none;">
+        <div class="dash-top"><div><h2 data-i18n="foodRequests">Food Requests</h2><p data-i18n="requestsDesc">Accept or decline food requests from NGOs and shelters.</p></div></div>
+        <div class="req-card"><div class="req-icon">🏛️</div><div><div class="req-title">Asha Foundation</div><div class="req-meta">📍 Delhi • 50 meals • Veg • Urgency: High</div></div><div class="req-actions"><button class="req-accept" onclick="showToast('Request accepted!','success')" data-i18n="accept">Accept</button><button class="req-decline" data-i18n="decline">Decline</button></div></div>
+        <div class="req-card"><div class="req-icon">🐾</div><div><div class="req-title">Paws Shelter</div><div class="req-meta">📍 Delhi • Rice & bread for 30 animals • Urgency: Medium</div></div><div class="req-actions"><button class="req-accept" onclick="showToast('Accepted for animals!','success')" data-i18n="accept">Accept</button><button class="req-decline" data-i18n="decline">Decline</button></div></div>
+        <div class="req-card"><div class="req-icon">👤</div><div><div class="req-title">Rahul – Volunteer Request</div><div class="req-meta">📍 0.8 km • Wants to pick up your food donation</div></div><div class="req-actions"><button class="req-accept" onclick="showToast('Volunteer assigned!','success')" data-i18n="approve">Approve</button><button class="req-decline" data-i18n="decline">Decline</button></div></div>
+      </div>
+      <!-- DELIVERIES VIEW -->
+      <div id="dv-deliveries" style="display:none;">
+        <div class="dash-top"><div><h2 data-i18n="deliveries">Deliveries</h2><p data-i18n="deliveriesDesc">Track volunteer pickup and delivery status.</p></div></div>
+        <div class="dash-section">
+          <table class="data-table">
+            <thead><tr><th data-i18n="volunteer">Volunteer</th><th data-i18n="food">Food</th><th data-i18n="recipient">Recipient</th><th data-i18n="status">Status</th><th data-i18n="time">Time</th></tr></thead>
+            <tbody>
+              <tr><td>Rahul S.</td><td>🍛 Biryani</td><td>Asha NGO</td><td><span class="badge green">Delivered ✓</span></td><td>2 hrs ago</td></tr>
+              <tr><td>Priya V.</td><td>🥗 Salad</td><td>Hope Foundation</td><td><span class="badge orange">In Transit 🚴</span></td><td>30 min ago</td></tr>
+              <tr><td>Meena J.</td><td>🍞 Bread</td><td>Paws Shelter</td><td><span class="badge blue">Picked Up</span></td><td>10 min ago</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <!-- PROFILE VIEW -->
+      <div id="dv-profile" style="display:none;">
+        <div class="dash-top"><div><h2 data-i18n="myProfile">My Profile</h2></div></div>
+        <div class="dash-section" style="max-width:600px;">
+          <div style="display:flex;align-items:center;gap:1.5rem;margin-bottom:2rem;">
+            <div style="width:80px;height:80px;border-radius:50%;background:linear-gradient(135deg,var(--green),var(--orange));color:#fff;font-size:2rem;font-weight:700;display:flex;align-items:center;justify-content:center;" id="profileAvatar">U</div>
+            <div><h3 id="profileName" style="font-family:'Poppins',sans-serif;font-weight:700;">User</h3><div id="profileType" style="font-size:.85rem;color:var(--mid);"></div><div style="color:var(--orange);font-size:.9rem;margin-top:.2rem;">★★★★★ Super Donor</div></div>
+          </div>
+          <div class="form-field"><label data-i18n="fullName">Full Name</label><input type="text" id="profName" value="Demo User"></div>
+          <div class="form-field"><label data-i18n="email">Email</label><input type="email" id="profEmail" value="demo@foodshare.ai"></div>
+          <div class="form-field"><label data-i18n="phone">Phone</label><input type="tel" value="+91 98765 43210"></div>
+          <div class="form-field"><label data-i18n="location">City</label><input type="text" value="New Delhi"></div>
+          <button class="auth-btn" onclick="showToast('Profile updated!','success')" data-i18n="saveProfile">Save Changes</button>
+        </div>
+      </div>
+      <!-- ADMIN VIEW -->
+      <div id="dv-admin" style="display:none;">
+        <div class="dash-top"><div><h2>🛡️ <span data-i18n="adminPanel">Admin Panel</span></h2><p data-i18n="adminDesc">Manage users, donations, and platform activity.</p></div></div>
+        <div class="admin-tabs">
+          <button class="admin-tab active" onclick="switchAdminTab('users')" data-i18n="allUsers">All Users</button>
+          <button class="admin-tab" onclick="switchAdminTab('ngos')" data-i18n="ngoApproval">NGO Approval</button>
+          <button class="admin-tab" onclick="switchAdminTab('donations')" data-i18n="allDonations">Donations</button>
+          <button class="admin-tab" onclick="switchAdminTab('vols')" data-i18n="volunteers">Volunteers</button>
+        </div>
+        <div class="admin-panel-content active" id="apc-users">
+          <div class="dash-section">
+            <div class="dash-section-title" data-i18n="registeredUsers">Registered Users</div>
+            <table class="data-table">
+              <thead><tr><th data-i18n="name">Name</th><th data-i18n="email">Email</th><th data-i18n="userType">Type</th><th data-i18n="location">City</th><th data-i18n="status">Status</th><th data-i18n="actions">Actions</th></tr></thead>
+              <tbody>
+                <tr><td>Rahul Sharma</td><td>rahul@email.com</td><td>Restaurant</td><td>Delhi</td><td><span class="badge green">Active</span></td><td><button class="req-decline" style="padding:.3rem .8rem;font-size:.75rem;" onclick="showToast('User suspended','error')">Suspend</button></td></tr>
+                <tr><td>Anita Verma</td><td>anita@email.com</td><td>Household</td><td>Mumbai</td><td><span class="badge green">Active</span></td><td><button class="req-decline" style="padding:.3rem .8rem;font-size:.75rem;">Suspend</button></td></tr>
+                <tr><td>Ahmed Khan</td><td>ahmed@email.com</td><td>Event Org.</td><td>Hyderabad</td><td><span class="badge green">Active</span></td><td><button class="req-decline" style="padding:.3rem .8rem;font-size:.75rem;">Suspend</button></td></tr>
+                <tr><td>SpamUser123</td><td>fake@spam.com</td><td>Unknown</td><td>—</td><td><span class="badge red">Suspicious</span></td><td><button class="req-accept" style="padding:.3rem .8rem;font-size:.75rem;background:#e53935;" onclick="showToast('Fake account removed!','success')">Remove</button></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="admin-panel-content" id="apc-ngos">
+          <div class="dash-section">
+            <div class="dash-section-title" data-i18n="pendingNGOs">Pending NGO Approvals</div>
+            <div class="req-card"><div class="req-icon">🏛️</div><div><div class="req-title">Asha Foundation</div><div class="req-meta">Delhi • Reg No: MH/2024/123 • 200+ beneficiaries</div></div><div class="req-actions"><button class="req-accept" onclick="showToast('NGO Approved!','success')" data-i18n="approve">Approve</button><button class="req-decline" data-i18n="reject">Reject</button></div></div>
+            <div class="req-card"><div class="req-icon">🐾</div><div><div class="req-title">Animal Care Trust</div><div class="req-meta">Mumbai • Reg No: MH/2024/456 • 150+ animals</div></div><div class="req-actions"><button class="req-accept" onclick="showToast('NGO Approved!','success')" data-i18n="approve">Approve</button><button class="req-decline" data-i18n="reject">Reject</button></div></div>
+          </div>
+        </div>
+        <div class="admin-panel-content" id="apc-donations">
+          <div class="dash-section">
+            <div class="dash-section-title" data-i18n="allDonations">All Donations</div>
+            <table class="data-table">
+              <thead><tr><th data-i18n="donor">Donor</th><th data-i18n="food">Food</th><th data-i18n="quantity">Qty</th><th data-i18n="status">Status</th><th data-i18n="date">Date</th></tr></thead>
+              <tbody>
+                <tr><td>Rahul S.</td><td>Biryani</td><td>30</td><td><span class="badge green">Delivered</span></td><td>Today</td></tr>
+                <tr><td>Anita V.</td><td>Salad</td><td>15</td><td><span class="badge orange">In Transit</span></td><td>Yesterday</td></tr>
+                <tr><td>Ahmed K.</td><td>Rice</td><td>40</td><td><span class="badge green">Delivered</span></td><td>Mar 12</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="admin-panel-content" id="apc-vols">
+          <div class="dash-section">
+            <div class="dash-section-title" data-i18n="volunteers">Volunteers</div>
+            <table class="data-table">
+              <thead><tr><th data-i18n="name">Name</th><th data-i18n="city">City</th><th data-i18n="deliveries">Deliveries</th><th data-i18n="myRating">Rating</th><th data-i18n="status">Status</th></tr></thead>
+              <tbody>
+                <tr><td>Rahul Volunteer</td><td>Delhi</td><td>48</td><td>⭐ 4.9</td><td><span class="badge green">Active</span></td></tr>
+                <tr><td>Priya Helper</td><td>Mumbai</td><td>35</td><td>⭐ 4.7</td><td><span class="badge green">Active</span></td></tr>
+                <tr><td>Suresh Runner</td><td>Bangalore</td><td>22</td><td>⭐ 4.5</td><td><span class="badge orange">On Delivery</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- FOOTER -->
+<footer id="mainFooter">
+  <div class="footer-grid">
+    <div class="footer-brand">
+      <div class="f-logo">FoodShare <span>AI</span> 🌱</div>
+      <p data-i18n="footer_desc">India's AI-powered food waste management platform. Connecting surplus food with people and animals who need it most — free, fast, and impactful.</p>
+    </div>
+    <div class="footer-col"><h6 data-i18n="platform">Platform</h6><ul>
+      <li><a onclick="showPage('home')" data-i18n="nav_home">Home</a></li>
+      <li><a onclick="showPage('donate')" data-i18n="donateFoodNav">Donate Food</a></li>
+      <li><a onclick="showPage('map')" data-i18n="findFoodNav">Find Food</a></li>
+      <li><a onclick="showPage('leaderboard')" data-i18n="nav_leaderboard">Leaderboard</a></li>
+    </ul></div>
+    <div class="footer-col"><h6 data-i18n="company">Company</h6><ul>
+      <li><a onclick="showPage('about')" data-i18n="nav_about">About</a></li>
+      <li><a onclick="showPage('impact')" data-i18n="nav_impact">Impact</a></li>
+      <li><a onclick="showPage('contact')" data-i18n="nav_contact">Contact</a></li>
+    </ul></div>
+    <div class="footer-col"><h6 data-i18n="support">Support</h6><ul>
+      <li><a data-i18n="faq">FAQ</a></li>
+      <li><a data-i18n="privacy">Privacy Policy</a></li>
+      <li><a data-i18n="terms">Terms of Service</a></li>
+      <li><a>satishparmar78787@gmail.com</a></li>
+    </ul></div>
+  </div>
+  <div class="footer-bottom">© 2026 FoodShare AI — Built with ❤️ to fight hunger in India. <span data-i18n="footer_free">100% Free. Always.</span></div>
+</footer>
+
+<script>
+// ============================================================
+// i18n TRANSLATIONS
+// ============================================================
+const translations = {
+  en: {
+    nav_home:'Home', nav_about:'About', nav_map:'Find Food', nav_leaderboard:'Leaderboard',
+    nav_impact:'Impact', nav_contact:'Contact', nav_login:'Login',
+    hero_badge:"India's #1 Food Waste Platform",
+    hero_h1:'Turn Extra Food Into <em>Hope</em> Instead of Waste',
+    hero_p:'Connect surplus food with people and animals who need it the most. AI-powered, real-time, and completely free.',
+    donateFoodBtn:'🍽 Donate Food', findFoodBtn:'📍 Find Food', volunteerBtn:'🤝 Become Volunteer',
+    mealsSaved:'Meals Saved Today', peopleFed:'People Fed', animalsFed:'Animals Fed',
+    impact_tag:'Platform Impact', realTime:'Real-Time', statistics:'Statistics',
+    stats_sub:'Every meal saved is a life touched. Watch our impact grow in real time.',
+    totalMeals:'Total Meals Saved', wasteReduced:'Food Waste Reduced (kg)',
+    peopleFedStat:'People Fed', animalsFedStat:'Animals Fed', activeNGOs:'Active NGOs', activeVols:'Active Volunteers',
+    how_tag:'How It Works', how_title:'Simple. Smart. <em>Impactful.</em>',
+    how_sub:'From donation to delivery in 4 easy steps.',
+    step1_h:'Create Account', step1_p:'Register in seconds. Choose your role: Donor, Volunteer, NGO, or Shelter.',
+    step2_h:'Add Food Details', step2_p:'Upload food info, quantity, expiry, and pickup time. AI analyzes and recommends best matches.',
+    step3_h:'NGOs Get Notified', step3_p:'Nearby NGOs and volunteers receive instant notifications about available food.',
+    step4_h:'Food Gets Delivered', step4_p:'Volunteers collect and deliver food to people or animals in need. Zero waste!',
+    animal_tag:'Animal Welfare', animal_title:'Feed Animals, <em>Not Landfills</em>',
+    animal_sub:'Surplus food can save stray animals. Connect with shelters near you.',
+    dogs:'Stray Dogs', dogs_p:'Cooked rice, bread, and vegetable scraps can feed thousands of stray dogs across India.',
+    cattle:'Cattle & Cows', cattle_p:'Vegetable peels and grain waste make excellent feed for cattle and cows in rural areas.',
+    birds:'Birds & Others', birds_p:'Grain waste, seeds, and fruits can feed thousands of birds and small animals daily.',
+    donateDogs:'Donate for Dogs', donateCattle:'Donate for Cattle', donateBirds:'Donate for Birds',
+    top_tag:'Community Heroes', top_title:'Top <em>Donors</em> This Month',
+    top_sub:'These incredible people are making a real difference every day.',
+    viewLeaderboard:'View Full Leaderboard →',
+    login:'Login', signup:'Sign Up', email:'Email Address', password:'Password',
+    loginBtn:'Login to Account', noAccount:"Don't have an account?",
+    fullName:'Full Name', gender:'Gender', phone:'Phone Number', userType:'User Type',
+    confirmPass:'Confirm Password', location:'Location',
+    createAccount:'Create Account & Send OTP', free100:'100% Free — No purchases, ever.',
+    checkEmail:'Check Your Email', otpSent:'We sent a 6-digit OTP to verify your account.',
+    verifyOTP:'Verify OTP', didntReceive:"Didn't receive it?",
+    myDashboard:'My Dashboard', donateFoodNav:'Donate Food', logout:'Sign Out',
+    donate_tag:'Food Donation', donate_title:'Donate Surplus <em>Food</em>',
+    donate_sub:'Fill in the details below and let AI match your food with the nearest recipient.',
+    foodDetails:'🍱 Food Donation Details', foodName:'Food Name', foodCategory:'Category',
+    quantity:'Quantity (meals)', cookTime:'Cooking Time', expiryTime:'Expiry Time',
+    pickupTime:'Pickup By', donateFor:'Donate For', uploadPhoto:'Click to upload food photo (optional)',
+    submitDonation:'🚀 Submit Donation', aiRec:'Smart Recommendation',
+    aiDefault:'Fill in the form and our AI will analyze your food and recommend the best distribution strategy.',
+    nearbyRecipients:'Nearby Recipients',
+    map_tag:'Live Food Map', map_title:'Find Food & Resources Near You',
+    map_sub:'Real-time map of food donors, NGOs, volunteers, and animal shelters across India.',
+    leg_donor:'Food Donors', leg_ngo:'NGOs', leg_vol:'Volunteers', leg_shelter:'Animal Shelters',
+    filter_all:'All', filter_donor:'Food Donors', filter_ngo:'NGOs', filter_vol:'Volunteers', filter_shelter:'Animal Shelters',
+    lb_tag:'Hall of Fame', lb_title:'FoodShare <em>Leaderboard</em>',
+    lb_sub:'Top food heroes making India hunger-free, one meal at a time.',
+    lb_name:'Name', lb_meals:'Meals', lb_rating:'Rating',
+    impact_tag2:'Platform Impact', impact_h:'Every Number <em>Tells a Story</em>',
+    impact_sub2:'Real data, real lives changed. Updated in real-time.',
+    impact_together:"Together, We've Saved",
+    impact_together_sub:'Cumulative impact since platform launch — growing every hour.',
+    wasteKg:'Food Waste Avoided', monthlyMeals:'Monthly Meals Saved',
+    monthlyWaste:'Food Waste Avoided (kg)', cityBreakdown:'City-wise Breakdown',
+    city:'City', mealsNum:'Meals', ngoNum:'NGOs', volNum:'Volunteers', status:'Status',
+    about_tag:'About FoodShare AI', about_h:'We Believe No Food Should Be Wasted',
+    about_p:"FoodShare AI is India's smartest food waste management platform, connecting surplus food from restaurants, events, and households to NGOs, volunteers, and animal shelters.",
+    our_mission:'Our Mission', mission_p:'Eliminate preventable food waste in India by creating a seamless bridge between food surplus and food need.',
+    ai_powered:'AI-Powered', ai_p:'Our AI analyzes food quantity, expiry times, and local demand to recommend the fastest and most impactful redistribution.',
+    sustainable:'Sustainable', sustainable_p:'Every meal redirected from landfill reduces methane emissions and supports sustainable food systems.',
+    numbers_title:'Numbers That <em>Matter</em>',
+    mealsNum:'Meals Saved', ngoNum:'Partner NGOs', volNum:'Volunteers', citiesNum:'Cities Covered',
+    contact_tag:'Get In Touch', contact_title:'We\'d Love to <em>Hear From You</em>',
+    contact_sub:'Have questions? Want to partner? We\'re here to help.',
+    contactInfo:'Contact Information', contact_info_p:"Whether you're a restaurant, NGO, or volunteer, reach out and we'll get back within 24 hours.",
+    address:'Address', hours:'Working Hours', sendMessage:'Send a Message',
+    subject:'Subject', message:'Message', sendBtn:'Send Message →',
+    welcome_dash:'Welcome back! 👋', newDonation:'+ New Donation',
+    myDonations:'My Donations', deliveries:'Deliveries', requests:'Requests',
+    foodMap:'Food Map', profile:'Profile', adminPanel:'Admin Panel', main_menu:'Main Menu',
+    tools:'Tools', admin_menu:'Admin',
+    overview:'Overview', recentDonations:'Recent Donations', nearbyRequests:'Nearby Food Requests',
+    food:'Food', recipient:'Recipient', date:'Date', match:'Match',
+    myRating:'My Rating', leaderboardRank:'Leaderboard Rank',
+    foodRequests:'Food Requests', requestsDesc:'Accept or decline food requests.',
+    accept:'Accept', decline:'Decline', approve:'Approve', reject:'Reject',
+    deliveriesDesc:'Track pickup and delivery status.',
+    volunteer:'Volunteer', time:'Time', myProfile:'My Profile', saveProfile:'Save Changes',
+    allUsers:'All Users', ngoApproval:'NGO Approval', allDonations:'All Donations',
+    volunteers:'Volunteers', registeredUsers:'Registered Users', pendingNGOs:'Pending NGO Approvals',
+    adminDesc:'Manage users, donations, and platform activity.',
+    name:'Name', donor:'Donor', actions:'Actions', donationsDesc:'Track all your donations.',
+    platform:'Platform', company:'Company', support:'Support',
+    footer_desc:"India's AI-powered food waste management platform.",
+    footer_free:'100% Free. Always.',
+    faq:'FAQ', privacy:'Privacy Policy', terms:'Terms of Service',
+    findFoodNav:'Find Food', impact_tag:'Platform Impact',
+    saving:'Saving...', done:'Done!'
+  },
+  hi: {
+    nav_home:'होम', nav_about:'हमारे बारे में', nav_map:'खाना खोजें', nav_leaderboard:'लीडरबोर्ड',
+    nav_impact:'प्रभाव', nav_contact:'संपर्क', nav_login:'लॉगिन',
+    hero_badge:'भारत का #1 फूड वेस्ट प्लेटफॉर्म',
+    hero_h1:'अतिरिक्त खाने को बर्बादी की जगह <em>उम्मीद</em> में बदलें',
+    hero_p:'अतिरिक्त खाने को उन लोगों और जानवरों से जोड़ें जिन्हें इसकी सबसे ज़्यादा ज़रूरत है। AI-संचालित, रीयल-टाइम और पूरी तरह मुफ़्त।',
+    donateFoodBtn:'🍽 खाना दान करें', findFoodBtn:'📍 खाना खोजें', volunteerBtn:'🤝 स्वयंसेवक बनें',
+    mealsSaved:'आज बचाए गए भोजन', peopleFed:'लोगों को खिलाया', animalsFed:'जानवरों को खिलाया',
+    impact_tag:'प्लेटफॉर्म प्रभाव', realTime:'रीयल-टाइम', statistics:'आंकड़े',
+    stats_sub:'बचाया गया हर भोजन एक जीवन को छूता है।',
+    totalMeals:'कुल बचाए गए भोजन', wasteReduced:'खाने की बर्बादी कम (किग्रा)',
+    peopleFedStat:'लोगों को खिलाया', animalsFedStat:'जानवरों को खिलाया', activeNGOs:'सक्रिय NGOs', activeVols:'सक्रिय स्वयंसेवक',
+    how_tag:'यह कैसे काम करता है', how_title:'सरल। स्मार्ट। <em>प्रभावशाली।</em>',
+    how_sub:'दान से डिलीवरी तक 4 आसान चरणों में।',
+    step1_h:'खाता बनाएं', step1_p:'सेकंड में रजिस्टर करें। अपनी भूमिका चुनें: दाता, स्वयंसेवक, NGO, या आश्रय।',
+    step2_h:'खाने की जानकारी डालें', step2_p:'खाने की जानकारी, मात्रा, एक्सपायरी और पिकअप टाइम अपलोड करें।',
+    step3_h:'NGOs को सूचित करें', step3_p:'नज़दीकी NGOs और स्वयंसेवकों को उपलब्ध खाने की तुरंत सूचना मिलती है।',
+    step4_h:'खाना पहुंचाया जाता है', step4_p:'स्वयंसेवक खाना इकट्ठा करके ज़रूरतमंद लोगों या जानवरों तक पहुंचाते हैं।',
+    animal_tag:'पशु कल्याण', animal_title:'जानवरों को खिलाएं, <em>कूड़ेदान को नहीं</em>',
+    animal_sub:'अतिरिक्त खाना आवारा जानवरों की जान बचा सकता है।',
+    dogs:'आवारा कुत्ते', dogs_p:'पका हुआ चावल, रोटी और सब्जी के छिलके भारत भर के हजारों आवारा कुत्तों को खिला सकते हैं।',
+    cattle:'गाय-बैल', cattle_p:'सब्जियों के छिलके और अनाज का कचरा ग्रामीण इलाकों में पशुओं के लिए उत्तम चारा है।',
+    birds:'पक्षी और अन्य', birds_p:'अनाज का कचरा, बीज और फल रोज़ाना हजारों पक्षियों और छोटे जानवरों को खिला सकते हैं।',
+    donateDogs:'कुत्तों के लिए दान करें', donateCattle:'पशुओं के लिए दान करें', donateBirds:'पक्षियों के लिए दान करें',
+    top_tag:'समुदाय के नायक', top_title:'इस महीने के शीर्ष <em>दाता</em>',
+    top_sub:'ये अद्भुत लोग हर दिन वास्तविक फर्क़ डाल रहे हैं।',
+    viewLeaderboard:'पूरा लीडरबोर्ड देखें →',
+    login:'लॉगिन', signup:'साइन अप', email:'ईमेल पता', password:'पासवर्ड',
+    loginBtn:'खाते में लॉगिन करें', noAccount:'कोई खाता नहीं?',
+    fullName:'पूरा नाम', gender:'लिंग', phone:'फ़ोन नंबर', userType:'उपयोगकर्ता प्रकार',
+    confirmPass:'पासवर्ड की पुष्टि करें', location:'स्थान',
+    createAccount:'खाता बनाएं और OTP भेजें', free100:'100% मुफ़्त — कोई खरीद नहीं, कभी भी।',
+    checkEmail:'अपना ईमेल जांचें', otpSent:'हमने आपके खाते को सत्यापित करने के लिए 6 अंकों का OTP भेजा।',
+    verifyOTP:'OTP सत्यापित करें', didntReceive:'नहीं मिला?',
+    myDashboard:'मेरा डैशबोर्ड', donateFoodNav:'खाना दान करें', logout:'साइन आउट',
+    donate_tag:'खाना दान', donate_title:'अतिरिक्त <em>खाना</em> दान करें',
+    donate_sub:'नीचे विवरण भरें और AI आपके खाने को निकटतम प्राप्तकर्ता से मिलाएगी।',
+    foodDetails:'🍱 खाना दान का विवरण', foodName:'खाने का नाम', foodCategory:'श्रेणी',
+    quantity:'मात्रा (भोजन)', cookTime:'पकाने का समय', expiryTime:'एक्सपायरी समय',
+    pickupTime:'पिकअप तक', donateFor:'किसके लिए दान', uploadPhoto:'खाने की फोटो अपलोड करें (वैकल्पिक)',
+    submitDonation:'🚀 दान जमा करें', aiRec:'स्मार्ट सिफारिश',
+    aiDefault:'फॉर्म भरें और हमारी AI आपके खाने का विश्लेषण करेगी।',
+    nearbyRecipients:'नज़दीकी प्राप्तकर्ता',
+    map_tag:'लाइव फूड मैप', map_title:'अपने पास खाना और संसाधन खोजें',
+    map_sub:'भारत भर में खाना दाताओं, NGOs, स्वयंसेवकों और आश्रयों का रीयल-टाइम मानचित्र।',
+    leg_donor:'खाना दाता', leg_ngo:'NGOs', leg_vol:'स्वयंसेवक', leg_shelter:'पशु आश्रय',
+    filter_all:'सभी', filter_donor:'खाना दाता', filter_ngo:'NGOs', filter_vol:'स्वयंसेवक', filter_shelter:'पशु आश्रय',
+    lb_tag:'हॉल ऑफ फेम', lb_title:'FoodShare <em>लीडरबोर्ड</em>',
+    lb_sub:'शीर्ष खाद्य नायक भारत को भूखमुक्त बना रहे हैं।',
+    lb_name:'नाम', lb_meals:'भोजन', lb_rating:'रेटिंग',
+    impact_tag2:'प्लेटफॉर्म प्रभाव', impact_h:'हर संख्या <em>एक कहानी बताती है</em>',
+    impact_sub2:'असली डेटा, असली जिंदगियां बदली गईं।',
+    impact_together:'मिलकर हमने बचाया है',
+    impact_together_sub:'प्लेटफॉर्म लॉन्च से संचयी प्रभाव — हर घंटे बढ़ रहा है।',
+    wasteKg:'खाने की बर्बादी से बचाया', monthlyMeals:'मासिक बचाए गए भोजन',
+    monthlyWaste:'खाने की बर्बादी से बचाया (किग्रा)', cityBreakdown:'शहर-वार विवरण',
+    city:'शहर', mealsNum:'भोजन', ngoNum:'NGOs', volNum:'स्वयंसेवक', status:'स्थिति',
+    about_tag:'FoodShare AI के बारे में', about_h:'हमारा मानना है कि कोई खाना बर्बाद नहीं होना चाहिए',
+    about_p:'FoodShare AI भारत का सबसे स्मार्ट फूड वेस्ट मैनेजमेंट प्लेटफॉर्म है।',
+    our_mission:'हमारा मिशन', mission_p:'भारत में रोके जाने योग्य खाने की बर्बादी को खत्म करना।',
+    ai_powered:'AI-संचालित', ai_p:'हमारी AI खाने की मात्रा, एक्सपायरी टाइम और स्थानीय मांग का विश्लेषण करती है।',
+    sustainable:'टिकाऊ', sustainable_p:'लैंडफिल से डाइवर्ट किया गया हर भोजन मीथेन उत्सर्जन को कम करता है।',
+    numbers_title:'संख्याएं जो <em>मायने रखती हैं</em>',
+    mealsNum:'भोजन बचाया', ngoNum:'पार्टनर NGOs', volNum:'स्वयंसेवक', citiesNum:'शहर कवर किए',
+    contact_tag:'संपर्क करें', contact_title:'हम <em>आपसे सुनना</em> पसंद करेंगे',
+    contact_sub:'सवाल हैं? साझेदारी करना चाहते हैं? हम यहाँ हैं।',
+    contactInfo:'संपर्क जानकारी', contact_info_p:'चाहे आप रेस्टोरेंट हों, NGO हों, या स्वयंसेवक, संपर्क करें।',
+    address:'पता', hours:'कार्य घंटे', sendMessage:'संदेश भेजें',
+    subject:'विषय', message:'संदेश', sendBtn:'संदेश भेजें →',
+    welcome_dash:'वापस स्वागत है! 👋', newDonation:'+ नया दान',
+    myDonations:'मेरे दान', deliveries:'डिलीवरी', requests:'अनुरोध',
+    foodMap:'फूड मैप', profile:'प्रोफाइल', adminPanel:'एडमिन पैनल', main_menu:'मुख्य मेनू',
+    tools:'टूल्स', admin_menu:'एडमिन',
+    overview:'अवलोकन', recentDonations:'हाल के दान', nearbyRequests:'नज़दीकी खाने के अनुरोध',
+    food:'खाना', recipient:'प्राप्तकर्ता', date:'तारीख', match:'मिलाएं',
+    myRating:'मेरी रेटिंग', leaderboardRank:'लीडरबोर्ड रैंक',
+    foodRequests:'खाने के अनुरोध', requestsDesc:'NGOs और आश्रयों से अनुरोध स्वीकार या अस्वीकार करें।',
+    accept:'स्वीकार करें', decline:'अस्वीकार करें', approve:'मंजूर करें', reject:'अस्वीकार',
+    deliveriesDesc:'पिकअप और डिलीवरी स्थिति ट्रैक करें।',
+    volunteer:'स्वयंसेवक', time:'समय', myProfile:'मेरी प्रोफाइल', saveProfile:'बदलाव सहेजें',
+    allUsers:'सभी उपयोगकर्ता', ngoApproval:'NGO अनुमोदन', allDonations:'सभी दान',
+    volunteers:'स्वयंसेवक', registeredUsers:'पंजीकृत उपयोगकर्ता', pendingNGOs:'लंबित NGO अनुमोदन',
+    adminDesc:'उपयोगकर्ताओं, दानों और प्लेटफॉर्म गतिविधि का प्रबंधन करें।',
+    name:'नाम', donor:'दाता', actions:'कार्य', donationsDesc:'अपने सभी दान ट्रैक करें।',
+    platform:'प्लेटफॉर्म', company:'कंपनी', support:'सहायता',
+    footer_desc:'भारत का AI-संचालित फूड वेस्ट मैनेजमेंट प्लेटफॉर्म।',
+    footer_free:'100% मुफ़्त। हमेशा।',
+    faq:'FAQ', privacy:'गोपनीयता नीति', terms:'सेवा की शर्तें',
+    findFoodNav:'खाना खोजें', impact_tag:'प्लेटफॉर्म प्रभाव',
+    saving:'सहेज रहे हैं...', done:'हो गया!'
+  }
+};
+
+let currentLang = 'en';
+let currentUser = null;
+let currentOTP = null;
+let pendingUser = null;
+let leafMap = null;
+let allMapMarkers = [];
+const USERS = [{ email:'demo@foodshare.ai', password:'demo123', name:'Demo User', type:'Restaurant', city:'Delhi' }];
+
+// ============================================================
+// LOADER
+// ============================================================
+(function(){
+  const msgs = ['Initializing AI...','Loading map data...','Setting up platform...','Almost ready...'];
+  const bar = document.getElementById('loaderBar');
+  const txt = document.getElementById('loaderTxt');
+  let el=0, mi=0;
+  const T=3500, S=40;
+  const iv = setInterval(()=>{
+    el+=S;
+    const p=Math.min((el/T)*100,100);
+    bar.style.width=p+'%';
+    const ni=Math.min(Math.floor(p/25),msgs.length-1);
+    if(ni!==mi){mi=ni;txt.textContent=msgs[mi];}
+    if(el>=T){
+      clearInterval(iv);
+      document.getElementById('pageLoader').classList.add('out');
+      setTimeout(()=>document.getElementById('pageLoader').style.display='none',600);
+      setTimeout(()=>startNotifs(),1000);
+    }
+  },S);
+})();
+
+// ============================================================
+// i18n
+// ============================================================
+function setLang(lang){
+  currentLang=lang;
+  document.querySelectorAll('.lang-btn').forEach((b,i)=>b.classList.toggle('active',i===(lang==='en'?0:1)));
+  applyTranslations();
+}
+
+function t(key){ return translations[currentLang][key] || translations['en'][key] || key; }
+
+function applyTranslations(){
+  document.querySelectorAll('[data-i18n]').forEach(el=>{
+    const k=el.getAttribute('data-i18n');
+    const v=t(k);
+    if(v.includes('<em>')){el.innerHTML=v;}
+    else{el.textContent=v;}
+  });
+}
+
+// ============================================================
+// PAGE NAVIGATION
+// ============================================================
+function showPage(id){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  const pg=document.getElementById('page-'+id);
+  if(pg){pg.classList.add('active');window.scrollTo(0,0);}
+  if(id==='map'){setTimeout(()=>initFoodMap(),200);}
+  if(id==='impact'){setTimeout(()=>drawCharts(),200);}
+  const footer=document.getElementById('mainFooter');
+  if(footer){footer.style.display=['dashboard'].includes(id)?'none':'block';}
+  setTimeout(()=>initReveal(),100);
+}
+
+function showDash(role){
+  if(!currentUser){openAuth('login');return;}
+  showPage('dashboard');
+  setDashView('overview');
+}
+
+function setDashView(view){
+  document.querySelectorAll('[id^="dv-"]').forEach(d=>d.style.display='none');
+  const el=document.getElementById('dv-'+view);
+  if(el)el.style.display='block';
+  document.querySelectorAll('.sidebar-item').forEach(s=>s.classList.remove('active'));
+  const map={overview:0,donations:1,deliveries:2,requests:3,foodMap:4,newDonation:5,profile:6,admin:7};
+  const idx=map[view];
+  if(idx!==undefined){
+    const items=document.querySelectorAll('.sidebar-item');
+    if(items[idx])items[idx].classList.add('active');
+  }
+}
+
+// ============================================================
+// AUTH
+// ============================================================
+function openAuth(tab){
+  document.getElementById('authOverlay').classList.add('open');
+  switchAuthTab(tab||'login');
+}
+function closeAuth(){ document.getElementById('authOverlay').classList.remove('open'); }
+
+function switchAuthTab(tab){
+  ['login','signup','otp'].forEach(p=>{
+    document.getElementById(p+'Panel').classList.toggle('active',p===tab);
+  });
+  if(document.getElementById('tabLogin'))document.getElementById('tabLogin').classList.toggle('active',tab==='login');
+  if(document.getElementById('tabSignup'))document.getElementById('tabSignup').classList.toggle('active',tab==='signup');
+  document.getElementById('authTabsWrap').style.display=tab==='otp'?'none':'flex';
+  clearAuthErrors();
+}
+
+function clearAuthErrors(){
+  ['loginErr','signupErr','otpErr'].forEach(id=>{ const e=document.getElementById(id); if(e)e.style.display='none'; });
+}
+function showAuthErr(id,msg){ const e=document.getElementById(id); e.textContent=msg; e.style.display='block'; }
+
+function doLogin(){
+  const email=document.getElementById('loginEmail').value.trim().toLowerCase();
+  const pass=document.getElementById('loginPass').value;
+  if(!email||!pass){showAuthErr('loginErr','Please enter your email and password.');return;}
+  const user=USERS.find(u=>u.email===email&&u.password===pass);
+  if(!user){showAuthErr('loginErr','Incorrect credentials. Try: demo@foodshare.ai / demo123');return;}
+  loginSuccess(user);
+}
+
+function doSignup(){
+  const name=document.getElementById('sigName').value.trim();
+  const email=document.getElementById('sigEmail').value.trim().toLowerCase();
+  const pass=document.getElementById('sigPass').value;
+  const pass2=document.getElementById('sigPass2').value;
+  const type=document.getElementById('sigType').value;
+  if(!name||!email||!pass||!type){showAuthErr('signupErr','Please fill in all required fields.');return;}
+  if(pass.length<6){showAuthErr('signupErr','Password must be at least 6 characters.');return;}
+  if(pass!==pass2){showAuthErr('signupErr','Passwords do not match.');return;}
+  if(!/\S+@\S+\.\S+/.test(email)){showAuthErr('signupErr','Please enter a valid email address.');return;}
+  if(USERS.find(u=>u.email===email)){showAuthErr('signupErr','An account with this email already exists.');return;}
+  pendingUser={name,email,password:pass,type,city:document.getElementById('sigLoc').value.trim()||'India'};
+  currentOTP=String(Math.floor(100000+Math.random()*900000));
+  console.log('%c🔐 DEMO OTP: '+currentOTP,'color:#f97316;font-size:20px;font-weight:bold;background:#0f1a0f;padding:8px 14px;border-radius:6px;');
+  const suc=document.getElementById('otpSuccess');
+  suc.textContent='📧 Demo OTP: '+currentOTP+' (check browser console)';
+  suc.style.display='block';
+  switchAuthTab('otp');
+  initOTPBoxes();
+}
+
+function initOTPBoxes(){
+  const boxes=document.querySelectorAll('.otp-box');
+  boxes.forEach((box,i)=>{
+    box.value='';box.classList.remove('filled');
+    box.oninput=e=>{
+      const v=e.target.value.replace(/\D/g,'');
+      e.target.value=v?v[0]:'';
+      box.classList.toggle('filled',!!v);
+      if(v&&i<boxes.length-1)boxes[i+1].focus();
+      if(Array.from(boxes).map(b=>b.value).join('').length===6)verifyOTP();
+    };
+    box.onkeydown=e=>{if(e.key==='Backspace'&&!box.value&&i>0)boxes[i-1].focus();};
+  });
+  boxes[0].focus();
+}
+
+function verifyOTP(){
+  const boxes=document.querySelectorAll('.otp-box');
+  const entered=Array.from(boxes).map(b=>b.value).join('');
+  if(entered.length<6){showAuthErr('otpErr','Enter all 6 digits.');return;}
+  if(entered!==currentOTP){showAuthErr('otpErr','❌ Incorrect OTP. Try again.');return;}
+  USERS.push(pendingUser);
+  loginSuccess(pendingUser);
+}
+
+function resendOTP(){
+  currentOTP=String(Math.floor(100000+Math.random()*900000));
+  console.log('%c🔐 NEW OTP: '+currentOTP,'color:#f97316;font-size:18px;font-weight:bold;');
+  const suc=document.getElementById('otpSuccess');
+  suc.textContent='📧 New OTP: '+currentOTP+' (check console)';
+  suc.style.display='block';
+  showToast('New OTP sent!','success');
+}
+
+function loginSuccess(user){
+  currentUser=user;
+  closeAuth();
+  document.getElementById('navAuthBtns').style.display='none';
+  document.getElementById('navUserBlock').style.display='block';
+  document.getElementById('navAvatar').childNodes[0].textContent=user.name[0].toUpperCase();
+  document.getElementById('menuName').textContent=user.name;
+  if(document.getElementById('profileName'))document.getElementById('profileName').textContent=user.name;
+  if(document.getElementById('profileType'))document.getElementById('profileType').textContent=user.type||'User';
+  if(document.getElementById('profileAvatar'))document.getElementById('profileAvatar').textContent=user.name[0].toUpperCase();
+  if(document.getElementById('profName'))document.getElementById('profName').value=user.name;
+  if(document.getElementById('profEmail'))document.getElementById('profEmail').value=user.email;
+  showToast('Welcome back, '+user.name.split(' ')[0]+'! 🌱','success');
+  showDash('donor');
+}
+
+function doLogout(){
+  currentUser=null;
+  document.getElementById('navAuthBtns').style.display='flex';
+  document.getElementById('navUserBlock').style.display='none';
+  showPage('home');
+  showToast('Signed out successfully.','');
+}
+
+// ============================================================
+// MAP
+// ============================================================
+const MAP_DATA = [
+  {lat:28.6139,lng:77.2090,type:'donor',name:'Taj Mahal Hotel',info:'250 meals available • Veg & Non-Veg',city:'Delhi'},
+  {lat:28.5921,lng:77.1689,type:'ngo',name:'Asha Foundation',info:'Feeding 200+ people daily',city:'Delhi'},
+  {lat:28.6246,lng:77.3168,type:'volunteer',name:'Rahul Sharma',info:'⭐ 4.9 • 48 deliveries',city:'Delhi'},
+  {lat:28.5355,lng:77.2793,type:'shelter',name:'Paws Animal Shelter',info:'80+ dogs & cats',city:'Delhi'},
+  {lat:18.9220,lng:72.8347,type:'donor',name:'Taj Palace Mumbai',info:'180 meals • Non-Veg',city:'Mumbai'},
+  {lat:19.0596,lng:72.8295,type:'ngo',name:'Mumbai Food Trust',info:'500+ people daily',city:'Mumbai'},
+  {lat:19.0496,lng:72.9199,type:'shelter',name:'Deonar Animal Care',info:'200+ animals',city:'Mumbai'},
+  {lat:19.0990,lng:72.8261,type:'volunteer',name:'Priya Nair',info:'⭐ 4.7 • 35 deliveries',city:'Mumbai'},
+  {lat:12.9610,lng:77.6478,type:'donor',name:'Leela Palace Bengaluru',info:'120 meals • Mixed',city:'Bangalore'},
+  {lat:12.9352,lng:77.6245,type:'ngo',name:'Bengaluru Care NGO',info:'300+ people daily',city:'Bangalore'},
+  {lat:12.9793,lng:77.5820,type:'shelter',name:'Bannerghatta Shelter',info:'150+ animals',city:'Bangalore'},
+  {lat:13.0101,lng:80.2055,type:'donor',name:'ITC Grand Chola',info:'160 meals • Veg & Non-Veg',city:'Chennai'},
+  {lat:13.0849,lng:80.2101,type:'ngo',name:'Chennai Hope Trust',info:'400+ people daily',city:'Chennai'},
+  {lat:17.4473,lng:78.3836,type:'donor',name:'ITC Kohenur',info:'140 meals available',city:'Hyderabad'},
+  {lat:17.4126,lng:78.4480,type:'ngo',name:'Hyderabad Aid Society',info:'250+ people daily',city:'Hyderabad'},
+  {lat:22.5354,lng:88.3435,type:'donor',name:'ITC Royal Bengal',info:'170 meals • Mixed',city:'Kolkata'},
+  {lat:22.5679,lng:88.3522,type:'ngo',name:'Kolkata Hunger Relief',info:'350+ people daily',city:'Kolkata'},
+  {lat:26.8934,lng:75.8007,type:'donor',name:'Rambagh Palace',info:'100 meals • Veg',city:'Jaipur'},
+  {lat:26.9124,lng:75.7873,type:'ngo',name:'Pink City Food NGO',info:'150+ people daily',city:'Jaipur'},
+  {lat:15.2993,lng:73.9289,type:'donor',name:'Taj Exotica Goa',info:'110 meals • Mixed',city:'Goa'},
+  {lat:15.4989,lng:73.8279,type:'shelter',name:'Goa Animal Rescue',info:'80+ animals',city:'Goa'},
+];
+
+const MAP_COLORS = { donor:'#28a745', ngo:'#f97316', volunteer:'#3b82f6', shelter:'#a855f7' };
+const MAP_ICONS  = { donor:'🍱', ngo:'🏛️', volunteer:'🙋', shelter:'🐾' };
+
+function initFoodMap(){
+  if(leafMap){ leafMap.invalidateSize(); return; }
+  leafMap=L.map('foodMap',{center:[20.5937,78.9629],zoom:5});
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap',maxZoom:18}).addTo(leafMap);
+  MAP_DATA.forEach(d=>{
+    const m=L.circleMarker([d.lat,d.lng],{
+      radius:10,fillColor:MAP_COLORS[d.type],color:'#fff',weight:2.5,fillOpacity:.9
+    }).addTo(leafMap);
+    m._type=d.type;
+    allMapMarkers.push(m);
+    m.bindPopup(`<div style="font-family:'DM Sans',sans-serif;min-width:190px;padding:4px;">
+      <div style="font-size:1.2rem;margin-bottom:4px;">${MAP_ICONS[d.type]}</div>
+      <strong style="color:#1a7a2e;">${d.name}</strong><br>
+      <span style="font-size:.75rem;color:#888;">${d.city}</span><br>
+      <hr style="border:none;border-top:1px solid #eee;margin:6px 0;">
+      <span style="font-size:.82rem;color:#555;">${d.info}</span>
+      ${d.type==='donor'?`<br><button onclick="showToast('Request sent!','success')" style="margin-top:8px;background:#1a7a2e;color:#fff;border:none;padding:5px 14px;border-radius:50px;font-size:.78rem;cursor:pointer;">Request Food</button>`:''}
+    </div>`);
+  });
+  if(navigator.geolocation){
+    navigator.geolocation.getCurrentPosition(pos=>{
+      const {latitude:la,longitude:ln}=pos.coords;
+      L.circleMarker([la,ln],{radius:14,fillColor:'#f97316',color:'#fff',weight:3,fillOpacity:1})
+        .addTo(leafMap).bindPopup('<strong>📍 You are here</strong>').openPopup();
+      leafMap.setView([la,ln],12);
+    },()=>{});
+  }
+}
+
+function filterMap(btn,type){
+  document.querySelectorAll('.mfbtn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  allMapMarkers.forEach(m=>{
+    if(type==='all'||m._type===type)leafMap.addLayer(m);
+    else leafMap.removeLayer(m);
+  });
+}
+
+// ============================================================
+// STATS COUNTERS
+// ============================================================
+const STATS=[{id:'stat1',end:12400,suffix:'+'},{id:'stat2',end:4900,suffix:'kg'},{id:'stat3',end:8200,suffix:'+'},{id:'stat4',end:3100,suffix:'+'},{id:'stat5',end:340,suffix:'+'},{id:'stat6',end:1200,suffix:'+'}];
+const HERO_STATS=[{id:'hMeals',end:248},{id:'hPeople',end:892},{id:'hAnimals',end:314}];
+
+function animateCounter(el,end,suffix='',dur=1800){
+  const start=performance.now();
+  const step=t=>{
+    const p=Math.min((t-start)/dur,1);
+    const ease=p<.5?2*p*p:-1+(4-2*p)*p;
+    el.textContent=Math.floor(ease*end).toLocaleString()+(p===1?suffix:'');
+    if(p<1)requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+}
+
+function runCounters(){
+  STATS.forEach(s=>{const el=document.getElementById(s.id);if(el)animateCounter(el,s.end,s.suffix);});
+  HERO_STATS.forEach(s=>{const el=document.getElementById(s.id);if(el)animateCounter(el,s.end,'');});
+}
+setTimeout(runCounters,3800);
+
+// ============================================================
+// CHARTS
+// ============================================================
+function drawCharts(){
+  const months=['Jan','Feb','Mar','Apr','May','Jun'];
+  const meals=[820,1050,1340,1680,1900,2200];
+  const waste=[310,420,540,660,750,880];
+
+  function drawBar(containerId,data,vals,color='#28a745'){
+    const c=document.getElementById(containerId);if(!c)return;
+    const mx=Math.max(...vals);
+    c.innerHTML=vals.map((v,i)=>`
+      <div class="bar-wrap">
+        <div class="bar-val" style="color:${color};">${v.toLocaleString()}</div>
+        <div class="bar" style="height:${Math.round((v/mx)*130)+10}px;background:linear-gradient(180deg,${color},${color+'99'});"></div>
+        <div class="bar-label">${data[i]}</div>
+      </div>`).join('');
+  }
+  drawBar('barChart1',months,meals,'#28a745');
+  drawBar('barChart2',months,waste,'#f97316');
+}
+
+// ============================================================
+// DONATION AI RECOMMENDATIONS
+// ============================================================
+const AI_RECS=[
+  '⚡ This food should be donated within 2 hours to ensure freshness and prevent spoilage.',
+  '🏛️ Asha Foundation (1.2 km) is the best match — they currently need 50+ meals urgently.',
+  '♻️ Excellent! Donating this food will divert approximately 8 kg from landfill.',
+  '🐾 Consider splitting: 60% for people via Asha NGO, 40% for Paws Animal Shelter nearby.',
+  '🚴 Rahul (Volunteer, 0.8 km) is available now — assign for fastest delivery.'
+];
+
+function submitDonation(){
+  if(!currentUser){openAuth('login');return;}
+  const name=document.getElementById('dFoodName').value.trim();
+  const qty=document.getElementById('dQty').value;
+  if(!name||!qty){showToast('Please fill in food name and quantity.','error');return;}
+  const rec=AI_RECS[Math.floor(Math.random()*AI_RECS.length)];
+  document.getElementById('aiRecBox').textContent=rec;
+  showToast('🎉 Donation submitted! NGOs notified.','success');
+  pushNotif('✅ Donation Accepted','Asha Foundation has accepted your donation request!','');
+  setTimeout(()=>pushNotif('🚴 Volunteer Assigned','Rahul is on the way to pick up your food.','orange'),3000);
+}
+
+// ============================================================
+// NOTIFICATIONS
+// ============================================================
+const DEMO_NOTIFS=[
+  {title:'🍱 Food Available Nearby',body:'Taj Hotel has 250 meals available — 1.2 km away',type:''},
+  {title:'🏛️ NGO Request',body:'Asha Foundation needs 50 meals urgently near you',type:'orange'},
+  {title:'🚴 Delivery Completed',body:'Rahul delivered 30 meals to Hope Foundation',type:''},
+  {title:'🌟 New Top Donor',body:'Ahmed Khan donated 150 meals this month!',type:'orange'},
+];
+let notifIdx=0;
+function startNotifs(){
+  setTimeout(()=>{
+    const n=DEMO_NOTIFS[notifIdx%DEMO_NOTIFS.length];
+    pushNotif(n.title,n.body,n.type);
+    notifIdx++;
+    setTimeout(startNotifs,8000);
+  },2000);
+}
+
+function pushNotif(title,body,type=''){
+  const bar=document.getElementById('notifBar');
+  const notif=document.createElement('div');
+  notif.className='notif'+(type?' '+type:'');
+  notif.innerHTML=`<div class="notif-icon">${type==='orange'?'🔔':'✅'}</div><div><div class="notif-title">${title}</div><div class="notif-body">${body}</div></div><button class="notif-close" onclick="this.closest('.notif').remove()">✕</button>`;
+  bar.appendChild(notif);
+  setTimeout(()=>notif.classList.add('show'),50);
+  setTimeout(()=>{notif.classList.remove('show');setTimeout(()=>notif.remove(),400);},6000);
+}
+
+// ============================================================
+// TOAST
+// ============================================================
+function showToast(msg,type=''){
+  const t=document.getElementById('toast');
+  t.textContent=msg;
+  t.className='toast '+(type?type+' ':'')+'show';
+  setTimeout(()=>{t.classList.remove('show');setTimeout(()=>t.className='toast',300);},3500);
+}
+
+// ============================================================
+// ADMIN TABS
+// ============================================================
+function switchAdminTab(id){
+  document.querySelectorAll('.admin-tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.admin-panel-content').forEach(p=>p.classList.remove('active'));
+  event.target.classList.add('active');
+  const el=document.getElementById('apc-'+id);
+  if(el)el.classList.add('active');
+}
+
+// ============================================================
+// SCROLL REVEAL
+// ============================================================
+function initReveal(){
+  const obs=new IntersectionObserver(entries=>{
+    entries.forEach((e,i)=>{if(e.isIntersecting)setTimeout(()=>e.target.classList.add('visible'),i*80);});
+  },{threshold:.08});
+  document.querySelectorAll('.reveal').forEach(r=>obs.observe(r));
+}
+document.addEventListener('DOMContentLoaded',()=>{
+  initReveal();
+  applyTranslations();
+  // AI Rec on form input
+  ['dFoodName','dQty','dExpiry'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el)el.addEventListener('input',()=>{
+      const box=document.getElementById('aiRecBox');
+      if(box&&document.getElementById('dFoodName').value&&document.getElementById('dQty').value){
+        box.textContent=AI_RECS[Math.floor(Math.random()*AI_RECS.length)];
+      }
+    });
+  });
+  // Location detect
+  const locInput=document.getElementById('dLocation');
+  if(locInput&&navigator.geolocation){
+    navigator.geolocation.getCurrentPosition(pos=>{
+      const {latitude,longitude}=pos.coords;
+      locInput.placeholder=`Detected: ${latitude.toFixed(4)}°N, ${longitude.toFixed(4)}°E`;
+    },()=>{});
+  }
+});
+</script>
+</body>
+</html>
